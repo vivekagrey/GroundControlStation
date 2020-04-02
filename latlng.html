@@ -1,0 +1,23 @@
+
+              var popup = L.popup();
+
+      function latLngPop(e) {
+          popup.setLatLng(e.latlng)
+               .setContent("Latitude: " + e.latlng.lat.toFixed(4) +
+                           "<br>Longitude: " + e.latlng.lng.toFixed(4))
+               .openOn(map);
+          console.log(e.latlng.lat);
+	  console.log(e.latlng.lng);
+          //var obj = {lat: e.latlng.lat, lon: e.latlng.lng};
+          //var json = JSON.stringify(obj);
+
+          //localStorage.setItem('localstorage', json);
+	  //var fs = import("fs");
+	  //fs.writeFile("/home/vivek/Documents/Johnnette_tech/gcs/wp_location.json", json);
+	  //console.log(e.latlng.lat);
+	  //vivek
+	  return e.latlng.lat
+	  
+      }
+
+	  map.on('click', latLngPop);
