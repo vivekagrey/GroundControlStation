@@ -441,6 +441,9 @@ class Window(QMainWindow):
         elif self.message == 8:
             self.message = 0
             QMessageBox.information(self.widget, "Message", "Choose Correct Baud/COM Port")
+        elif self.message == 9:
+            self.message = 0
+            QMessageBox.information(self.widget, "Message", "Add Lattitude and Longitude in Decimal")
     def initial_setup_stack(self):
         setup_layout = QVBoxLayout()
         tabs = QTabWidget()
@@ -488,30 +491,24 @@ class Window(QMainWindow):
         self.actiongrid.addWidget(action_btn_2, 0, 2)
         action_btn_2.clicked.connect(self.force_arm)
 
-        action_btn_3 = QPushButton("FORCE DISARM")
+
+
+        action_btn_3 = QPushButton("SET ALTITUDE(in m)")
         self.actiongrid.addWidget(action_btn_3, 0, 3)
-        action_btn_3.clicked.connect(self.force_disarm)
+        action_btn_3.clicked.connect(self.altitude_method)
 
-        action_btn_4 = QPushButton("SET ALTITUDE(in m)")
-        self.actiongrid.addWidget(action_btn_4, 0, 4)
-        action_btn_4.clicked.connect(self.altitude_method)
+        action_btn_4 = QPushButton("SET HOME LOCATION")
+        self.actiongrid.addWidget(action_btn_4, 1, 1)
+        action_btn_4.clicked.connect(self.set_home_location)
 
-        action_btn_5 = QPushButton("Action")
-        self.actiongrid.addWidget(action_btn_5, 1, 1)
-        action_btn_6 = QPushButton("Action")
-        self.actiongrid.addWidget(action_btn_6, 1, 2)
-        action_btn_7 = QPushButton("Action")
-        self.actiongrid.addWidget(action_btn_7, 1, 3)
-        action_btn_8 = QPushButton("Force Arm")
-        self.actiongrid.addWidget(action_btn_8, 1, 4)
-        action_btn_9 = QPushButton("Force Arm")
-        self.actiongrid.addWidget(action_btn_9, 2, 1)
-        action_btn_10 = QPushButton("Force Arm")
-        self.actiongrid.addWidget(action_btn_10, 2, 2)
-        action_btn_11 = QPushButton("Force Arm")
-        self.actiongrid.addWidget(action_btn_11, 2, 3)
-        action_btn_12 = QPushButton("Force Arm")
-        self.actiongrid.addWidget(action_btn_12, 2, 4)
+        action_btn_5 = QPushButton("FORCE DISARM")
+        self.actiongrid.addWidget(action_btn_5, 1, 2)
+        action_btn_5.clicked.connect(self.force_disarm)
+
+
+        action_btn_8 = QPushButton("SET GROUND SPEED(m/s)")
+        self.actiongrid.addWidget(action_btn_8, 1, 3)
+        action_btn_8.clicked.connect(self.set_ground_speed)
 
         self.combobox_action_1 = QComboBox()
         self.combobox_action_1.addItems(["Select Mode", "Stabilize", "Auto", "Guided","Loiter", "Simple Takeoff", "Land", "Alt Hold", "RTL"])
@@ -519,27 +516,23 @@ class Window(QMainWindow):
         self.combobox_action_1.activated[str].connect(self.mode_text)
 
         self.combobox_action_2 = QComboBox()
-        self.combobox_action_2.addItems(["Select/Enter Baud", "57600", "115200"])
+        self.combobox_action_2.addItems(["Select Home location", "57600", "115200"])
         self.actiongrid.addWidget(self.combobox_action_2,1,0)
         # self.combobox_action_2.activated[str].connect(self.combo_text)
-        self.combobox_action_3 = QComboBox()
-        self.combobox_action_3.addItems(["Select/Enter Baud", "57600", "115200"])
-        self.actiongrid.addWidget(self.combobox_action_3,2,0)
+        self.gs_spinbox = QSpinBox()
+        self.actiongrid.addWidget(self.gs_spinbox,1,4)
+        self.gs_spinbox.setRange(0, 50)
         # self.combobox_action_3.activated[str].connect(self.combo_text)
         self.alt_text = QSpinBox()
-        self.actiongrid.addWidget(self.alt_text, 0, 5)
+        self.actiongrid.addWidget(self.alt_text, 0, 4)
         self.alt_text.setRange(0, 10000)
-        #self.alt_text.valueChanged.connect(self.altitude_method)
-
-        self.combobox_action_5 = QComboBox()
-        self.combobox_action_5.addItems(["Select/Enter Baud", "57600", "115200"])
-        self.actiongrid.addWidget(self.combobox_action_5,1,5)
-        # self.combobox_action_5.activated[str].connect(self.combo_text)
-
-        self.combobox_action_6 = QComboBox()
-        self.combobox_action_6.addItems(["Select/Enter Baud", "57600", "115200"])
-        self.actiongrid.addWidget(self.combobox_action_6,2,5)
-        # self.combobox_action_6.activated[str].connect(self.combo_text)
+    def set_ground_speed(self):
+        try:
+            self.vehicle.groundspeed = self.gs_spinbox.value()
+        except AttributeError:
+            print("e1111")
+    def set_home_location(self):
+        pass
     def altitude_method(self):
         try:
             if self.vehicle:
@@ -929,59 +922,52 @@ class Window(QMainWindow):
             self.vehicle.armed = False
         except AttributeError:
             self.message = 2
+    def table_item_changed(self, Qitem):
+        try:
+            test = float(Qitem.text())
+        except ValueError:
+            self.message = 9
+            Qitem.setText(str(0.0))
     def waypoints(self):
-        waypoint_hbox = QHBoxLayout()
-        waypoint_btnframe = QFrame()
-        waypoint_stackedwindow = QStackedLayout()
-        waypoint_btngrid = QGridLayout()
-        waypoint_btngrid.setAlignment(Qt.AlignLeft)
-
-        waypoint_btnframe.move(0, 0)
-        waypoint_btnframe.setLayout(waypoint_btngrid)
-        waypoint_hbox.addWidget(waypoint_btnframe)
-        waypoint_hbox.addLayout(waypoint_stackedwindow)
-        stack_wid1 = QWidget()
-        self.stack_wid_wp = QWidget()
-        for n, page in enumerate([("WP Data", stack_wid1), ("WP setup", self.stack_wid_wp)]):
-            btn = QPushButton(str(page[0]))
-            btn.setFixedSize(100,50)
-            btn.pressed.connect(lambda n=n: waypoint_stackedwindow.setCurrentIndex(n))
-            waypoint_btngrid.addWidget(btn, n, 0)
-            waypoint_stackedwindow.addWidget(page[1])
-        self.waypoints_table = QTableWidget(stack_wid1)
+        hbox = QHBoxLayout()
+        self.tab2.setLayout(hbox)
+        self.waypoints_table = QTableWidget()
+        hbox.addWidget(self.waypoints_table)
         self.waypoints_table.show()
+        self.waypoints_table.itemChanged.connect(self.table_item_changed)
 
         self.waypoints_table.setRowCount(0)
         self.waypoints_table.setColumnCount(5)
-        self.waypoints_table.resize(680, 150)
 
         #self.waypoints_table.setFixedSize(1200, 150)
         self.waypoints_table.setHorizontalHeaderLabels(( "Lattitude", "Longitude", "Move Up", "Move Down", "Remove"))
         self.waypoints_table.setColumnWidth(1, 150)
         self.waypoints_table.setColumnWidth(0, 200)
-        self.waypoints_table.move(0,0)
-        waypoints_list_grid = QGridLayout(stack_wid1)
-        waypoints_list_grid.setAlignment(Qt.AlignRight)
+
+        waypointButtonWidget = QWidget()
+        waypoints_button_grid = QGridLayout()
+        waypoints_button_grid.setAlignment(Qt.AlignRight)
+        hbox.addLayout(waypoints_button_grid)
         self.wp_count = 0
 
         btn11 = QPushButton("Upload WP File")
-        waypoints_list_grid.addWidget(btn11, 0, 0)
+        waypoints_button_grid.addWidget(btn11, 0, 0)
         btn11.clicked.connect(self.upload_custom_wps)
 
         btn12 = QPushButton("Add Waypoint")
-        waypoints_list_grid.addWidget(btn12, 1, 0)
+        waypoints_button_grid.addWidget(btn12, 1, 0)
         btn12.clicked.connect(self.add_wp)
+
         btn13 = QPushButton("Delete all Waypoints")
-        waypoints_list_grid.addWidget(btn13, 2, 0)
+        waypoints_button_grid.addWidget(btn13, 2, 0)
         btn13.clicked.connect(self.delete_all_wps)
-        self.tab2.setLayout(waypoint_hbox)
 
         send_wps_button = QPushButton("Send WPs to UAV")
-        waypoints_list_grid.addWidget(send_wps_button, 3, 0)
+        waypoints_button_grid.addWidget(send_wps_button, 3, 0)
         send_wps_button.clicked.connect(self.send_wps_to_uav)
 
-        send_wps_button = QPushButton("Download WPs to UAV")
-        #waypoints_list_grid.addWidget(send_wps_button, 3, 0)
+        download_wps_button = QPushButton("Download WPs from UAV")
+        #waypoints_button_grid.addWidget(download_wps_button, 3, 0)
     def send_wps_to_uav(self):
         swp = threading.Thread(target=self.send_wps_to_uav_th)
         swp.start()
@@ -1020,37 +1006,43 @@ class Window(QMainWindow):
         button = self.sender()
         row = self.waypoints_table.indexAt(button.pos()).row()
         if row != self.wp_count-1:
-            lat_plus_1 = self.waypoints_table.item(row + 1, 0).text()
-            lon_plus_1 = self.waypoints_table.item(row + 1, 1).text()
-            lat = self.waypoints_table.item(row, 0).text()
-            lon = self.waypoints_table.item(row, 1).text()
-            self.waypoints_table.setItem(row + 1, 0, QTableWidgetItem(lat))
-            self.waypoints_table.setItem(row + 1, 1, QTableWidgetItem(lon))
-            self.waypoints_table.setItem(row, 0, QTableWidgetItem(lat_plus_1))
-            self.waypoints_table.setItem(row, 1, QTableWidgetItem(lon_plus_1))
+            try:
+                lat_plus_1 = self.waypoints_table.item(row + 1, 0).text()
+                lon_plus_1 = self.waypoints_table.item(row + 1, 1).text()
+                lat = self.waypoints_table.item(row, 0).text()
+                lon = self.waypoints_table.item(row, 1).text()
+                self.waypoints_table.setItem(row + 1, 0, QTableWidgetItem(lat))
+                self.waypoints_table.setItem(row + 1, 1, QTableWidgetItem(lon))
+                self.waypoints_table.setItem(row, 0, QTableWidgetItem(lat_plus_1))
+                self.waypoints_table.setItem(row, 1, QTableWidgetItem(lon_plus_1))
+            except AttributeError:
+                self.message = 9
     def move_wp_up_btn_clicked(self):
         button = self.sender()
         row = self.waypoints_table.indexAt(button.pos()).row()
         if row != 0:
-            lat_minus_1 = self.waypoints_table.item(row-1, 0).text()
-            lon_minus_1 = self.waypoints_table.item(row-1, 1).text()
-            lat = self.waypoints_table.item(row, 0).text()
-            lon = self.waypoints_table.item(row, 1).text()
-            self.waypoints_table.setItem(row-1, 0, QTableWidgetItem(lat))
-            self.waypoints_table.setItem(row - 1, 1, QTableWidgetItem(lon))
-            self.waypoints_table.setItem(row, 0, QTableWidgetItem(lat_minus_1))
-            self.waypoints_table.setItem(row, 1, QTableWidgetItem(lon_minus_1))
-
+            try:
+                lat_minus_1 = self.waypoints_table.item(row-1, 0).text()
+                lon_minus_1 = self.waypoints_table.item(row-1, 1).text()
+                lat = self.waypoints_table.item(row, 0).text()
+                lon = self.waypoints_table.item(row, 1).text()
+                self.waypoints_table.setItem(row-1, 0, QTableWidgetItem(lat))
+                self.waypoints_table.setItem(row - 1, 1, QTableWidgetItem(lon))
+                self.waypoints_table.setItem(row, 0, QTableWidgetItem(lat_minus_1))
+                self.waypoints_table.setItem(row, 1, QTableWidgetItem(lon_minus_1))
+            except AttributeError:
+                self.message = 9
     def remove_btn_clicked(self):
         button = self.sender()
         row = self.waypoints_table.indexAt(button.pos()).row()
         self.waypoints_table.removeRow(row)
         self.wp_count -= 1
 
-    def add_wp_onClick(self, message):
+    def add_wp_onMapClick(self, message):
         if self.p.i % 2 == 0:
             print("lat",self.p.i, type(message))
             self.waypoints_table.insertRow(self.wp_count)
+            self.waypoints_table.setRowHeight(self.wp_count,15)
             remove_wp_btn = QPushButton("Remove")
             self.waypoints_table.setCellWidget(self.wp_count, 4, remove_wp_btn)
 
@@ -1068,6 +1060,7 @@ class Window(QMainWindow):
             self.wp_count +=1
     def add_wp(self):
         self.waypoints_table.insertRow(self.wp_count)
+        self.waypoints_table.setRowHeight(self.wp_count, 15)
         remove_wp_btn = QPushButton("Remove")
         self.waypoints_table.setCellWidget(self.wp_count, 4, remove_wp_btn)
         move_wp_up_btn = QPushButton("Move Up")
@@ -1081,31 +1074,37 @@ class Window(QMainWindow):
     def upload_custom_wps(self):
         import csv
         self.wp_count = 0
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        filename, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "",
+                                                  "CSV Format Files (*.csv)", options=options)
         try:
-            filename = "wp_sector_70.csv"
             if self.sitl_csv:
                 filename = "wp_sitl.csv"
+        except AttributeError:
+            pass
+        if filename:
             with open(filename, 'r') as csvfile:
                 # creating a csv reader object
                 csvreader = csv.reader(csvfile)
                 self.waypoints_table.setRowCount(0)
                 for row_number, row_data in enumerate(csvreader):
                     self.waypoints_table.insertRow(row_number)
+                    self.waypoints_table.setRowHeight(row_number, 15)
                     self.wp_count += 1
                     for column_number, data in enumerate(row_data):
-                        if column_number < 4:
+                        if column_number < 2:
                             self.waypoints_table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
-                            move_wp_up_btn = QPushButton("Move Up")
-                            move_wp_down_btn = QPushButton("Move Down")
-                            self.waypoints_table.setCellWidget(row_number, 2, move_wp_up_btn)
-                            self.waypoints_table.setCellWidget(row_number, 3, move_wp_down_btn)
-                            move_wp_up_btn.clicked.connect(self.move_wp_up_btn_clicked)
-                            move_wp_down_btn.clicked.connect(self.move_wp_down_btn_clicked)
-                        remove_wp_btn = QPushButton("Remove")
-                        self.waypoints_table.setCellWidget(row_number, 4, remove_wp_btn)
-                        remove_wp_btn.clicked.connect(self.remove_btn_clicked)
-        except AttributeError:
-            self.message = 2
+                    move_wp_up_btn = QPushButton("Move Up")
+                    move_wp_down_btn = QPushButton("Move Down")
+                    self.waypoints_table.setCellWidget(row_number, 2, move_wp_up_btn)
+                    self.waypoints_table.setCellWidget(row_number, 3, move_wp_down_btn)
+                    move_wp_up_btn.clicked.connect(self.move_wp_up_btn_clicked)
+                    move_wp_down_btn.clicked.connect(self.move_wp_down_btn_clicked)
+                    remove_wp_btn = QPushButton("Remove")
+                    self.waypoints_table.setCellWidget(row_number, 4, remove_wp_btn)
+                    remove_wp_btn.clicked.connect(self.remove_btn_clicked)
+
     def menubar(self):
         bar = self.menuBar()
         file = bar.addMenu("File")
@@ -1118,9 +1117,8 @@ class Window(QMainWindow):
         edit.addAction("Copy")
         edit.addAction("Paste")
     def gmap(self):
-        import requests
-        import geocoder
-        gmap = gmplot.GoogleMapPlotter(28.5355, 77.3910, 18)
+        pass
+        """gmap = gmplot.GoogleMapPlotter(28.5355, 77.3910, 18)
         #gmap = gmplot.GoogleMapPlotter.from_geocode("San Francisco")
         gmap.apikey = "AIzaSyDeRNMnZ__VnQDiATiuz4kPjF_c9r1kWe8"
         gmap.draw("map_key.html")
@@ -1128,18 +1126,8 @@ class Window(QMainWindow):
         web.resize(620, 400)
         web.load(QUrl("map_key.html"))
         web.show()
-        self.hbox1.addWidget(web)
-    '''
-    @app.route('/hello', methods=['GET', 'POST'])
-    def hello():
-        pass
+        self.hbox1.addWidget(web)"""
 
-        # POST request
-        if request.method == 'GET':
-            print('Incoming..')
-            print(request.get_json())  # parse as JSON
-            return 'OK', 200
-    '''
     def vehicle_trail(self):
         '''
                 try:
@@ -1179,7 +1167,7 @@ class Window(QMainWindow):
         #self.web.load(QUrl("my_map1.html"))
         self.web.show()
         self.hbox1.addWidget(self.web)
-        self.p.loc_signal.connect(self.add_wp_onClick)
+        self.p.loc_signal.connect(self.add_wp_onMapClick)
     def onLoadFinished(self, ok):
         if ok:
             self.web.page().runJavaScript("console.log(1111)", self.ready)
