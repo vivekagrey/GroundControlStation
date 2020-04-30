@@ -50,7 +50,7 @@
 
 <body>
 
-   <div class="folium-map" id="folium_bc8659bfae054b7bac5f027872c43f26" style="width: 100%; height: 100%"></div>
+   <div class="folium-map" id="folium_06f5bfd160cd4db7970fce515bfeb7bf" style="width: 100%; height: 100%"></div>
 
    <script>
 
@@ -94,9 +94,9 @@
       /*
       Creates the map and adds the selected layers
       */
-      var map = L.map('folium_bc8659bfae054b7bac5f027872c43f26', {
+      var map = L.map('folium_06f5bfd160cd4db7970fce515bfeb7bf', {
                                        center:[28.5011226, 77.4099794],
-                                       zoom: 2,
+                                       zoom: 10,
                                        maxBounds: bounds,
                                        layers: [base_tile]
                                      });
@@ -121,6 +121,7 @@
       
               var popup = L.popup();
 
+
       function latLngPop(e) {
           popup.setLatLng(e.latlng)
                .setContent("Latitude: " + e.latlng.lat.toFixed(4) +
@@ -128,20 +129,33 @@
                .openOn(map);
           console.log(e.latlng.lat);
 	  console.log(e.latlng.lng);
-          //var obj = {lat: e.latlng.lat, lon: e.latlng.lng};
-          //var json = JSON.stringify(obj);
 
-          //localStorage.setItem('localstorage', json);
-	  //var fs = import("fs");
-	  //fs.writeFile("/home/vivek/Documents/Johnnette_tech/gcs/wp_location.json", json);
-	  //console.log(e.latlng.lat);
-	  //vivek
-	  return e.latlng.lat
-	  
+	  //return e.latlng.lat
+
       }
 
-	  map.on('click', latLngPop);
+	  //map.on('click', latLngPop);
 
+        function circlemarker(e){
+                      var circle_marker = L.circleMarker([],{"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 1, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 3, "stroke": true, "weight": 3})
+.setLatLng(e.latlng).addTo(map);
+              circle_marker.on('dblclick', function(e){map.removeLayer(e.target)});
+              console.log(e.latlng.lat);
+              console.log(e.latlng.lng);
+
+        }
+      map.on('click', circlemarker);
+
+
+              function newMarker(e){
+    var new_mark = L.marker().setLatLng(e.latlng).addTo(map);
+    new_mark.dragging.enable();
+    new_mark.on('dblclick', function(e){map.removeLayer(e.target)})
+    var lat = e.latlng.lat.toFixed(4),
+       lng = e.latlng.lng.toFixed(4);
+    new_mark.bindPopup("Latitude: " + lat + "<br>Longitude: " + lng );
+};
+//map.on('click', newMarker)
 
       
 

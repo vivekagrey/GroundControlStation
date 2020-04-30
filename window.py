@@ -1,17 +1,17 @@
 #https://firmware.ardupilot.org/Copter/stable-4.0.2/
 from dronekit import *
-import folium
-#from gmplot import *
-import sys
-import cv2
-from PyQt5.QtCore import *
-from PyQt5 import *
-from PyQt5.QtWebEngine import *
-from PyQt5.QtWebEngineWidgets import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-import threading
 import dronekit.mavlink
+
+import folium
+import cv2
+#from gmplot import *
+#from PyQt5 import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtWebEngineWidgets import *
+import threading
+
 
 class Second(QMainWindow):
     def __init__(self, parent=None):
@@ -19,8 +19,8 @@ class Second(QMainWindow):
 class Window(QMainWindow):
     def __init__(self):
         super(Window, self).__init__()
-        #self.setGeometry(0,0,1600,800)
-        self.setFixedSize(1300,715)
+        self.showMaximized()
+        self.setGeometry(0,0,1000,500)
         self.setWindowTitle("Johnnette GCS")
         self.setWindowIcon(QIcon("icon.png"))
         #self.setStyleSheet("background-color:red;selection-color: yellow;selection-background-color: blue;border-width: 0px;padding: 0px; spacing: 0px;")
@@ -31,20 +31,24 @@ class Window(QMainWindow):
         self.initial_setup_stack()
     def header_frame(self):
         pagelayout = QVBoxLayout()
+        pagelayout.setContentsMargins(0,0,0,0)
+        pagelayout.setSpacing(0)
         self.head_grid_layout = QGridLayout()
         self.head_grid_layout.setAlignment(Qt.AlignTop)
+        self.head_grid_layout.setContentsMargins(0,0,0,0)
         self.header_frame = QFrame()
-        self.header_frame.move(0,0)
+        #self.header_frame.move(0,0)
+        self.header_frame.setMaximumHeight(70)
         self.header_frame.setLayout(self.head_grid_layout)
-        self.header_frame.setFixedSize(1295,100)
         self.Stack = QStackedLayout()
         self.Stack.setAlignment(Qt.AlignTop)
+        self.header_frame.setStyleSheet("selection-color: black;selection-background-color: powderblue;border-width: 0px;padding: 0px; spacing: 0px;")
 
         pagelayout.addWidget(self.header_frame)
         pagelayout.addLayout(self.Stack)
 
         self.widget = QWidget()
-        #widget.setStyleSheet("border-width: 0px;padding: 0px; spacing: 0px;border:1px solid gray;")
+        #self.widget.setStyleSheet("border-width: 0px;padding: 0px; spacing: 0px;border:1px solid gray;")
         self.widget.setLayout(pagelayout)
         self.setCentralWidget(self.widget)
 
@@ -53,25 +57,27 @@ class Window(QMainWindow):
         self.n = 0
         for n, page in enumerate([("Flight data", self.stack_wid1), ("Initial setup", self.stack_wid2)]):
             btn = QPushButton(str(page[0]))
-            btn.setFixedSize(100,100)
+            btn.setFixedSize(100,70)
             btn.pressed.connect(lambda n=n: self.Stack.setCurrentIndex(n))
             self.head_grid_layout.addWidget(btn, 0, n+1)
             self.Stack.addWidget(page[1])
 
         pushButton = QPushButton("Help")
-        pushButton.setFixedSize(100, 100)
+        pushButton.setFixedSize(100, 70)
         self.head_grid_layout.addWidget(pushButton,0,3)
         pushButton.clicked.connect(self.on_pushButton_clicked)
 
         self.pushButton_connect = QPushButton("Connect")
-        self.pushButton_connect.setFixedSize(100, 90)
+        self.pushButton_connect.setFixedSize(100, 70)
         self.head_grid_layout.addWidget(self.pushButton_connect, 0, 8)
-        self.pushButton_connect.setCheckable(True)
+        self.pushButton_connect.clicked.connect(self.connect_fc)
+
+        #self.pushButton_connect.setCheckable(True)
         #pushButton_connect.toggle()
         h_label = QLabel()
         pix = QPixmap('logo250x100.jpg')
-        pix.scaled(250, 100)
-        h_label.setFixedSize(250,100)
+        pix.scaled(250, 700)
+        #h_label.setFixedSize(250,100)
         h_label.setPixmap(pix)
         h_label.show()
         self.head_grid_layout.addWidget(h_label,0,0)
@@ -80,8 +86,6 @@ class Window(QMainWindow):
         self.head_grid_layout.addLayout(combobox_grid,0, 7 )
         combobox_subgrid = QGridLayout()
         combobox_grid.addLayout(combobox_subgrid, 1, 0)
-        button_subgrid = QGridLayout()
-        combobox_grid.addLayout(button_subgrid, 2, 0)
 
         self.combobox1 = QComboBox()
         self.combobox1.addItem("Select/Enter COM Port")
@@ -98,9 +102,6 @@ class Window(QMainWindow):
         self.combobox2.addItem("Select/Enter Baud")
         self.combobox2.addItem("57600")
         self.combobox2.addItem("115200")
-
-        #self.combobox2.setEditable(True)
-        #self.combobox2.InsertAtTop
         self.combobox2.activated[str].connect(self.combo_text)
 
         combobox3 = QComboBox()
@@ -113,9 +114,9 @@ class Window(QMainWindow):
         combobox_subgrid.addWidget(self.combobox2, 0, 0)
         combobox_subgrid.addWidget(combobox3, 0, 1)
 
-        spacer1 = QSpacerItem(60, 80)
+        spacer1 = QSpacerItem(100, 70)
         self.head_grid_layout.addItem(spacer1, 0, 4)
-        spacer2 = QSpacerItem(60, 80)
+        spacer2 = QSpacerItem(60, 70)
         self.head_grid_layout.addItem(spacer2, 0, 6)
 
         self.mode_label = QLabel("MODE")
@@ -123,15 +124,8 @@ class Window(QMainWindow):
         self.mode_label.setStyleSheet("font:bold 15pt Comic Sans MS")
 
         self.pushButtonlaunch = QPushButton("Launch Mission")
-        self.pushButtonlaunch.setFixedSize(120, 45)
-        button_subgrid.addWidget(self.pushButtonlaunch, 0, 0)
+        combobox_grid.addWidget(self.pushButtonlaunch, 2, 0)
         self.pushButtonlaunch.clicked.connect(self.launch_mission)
-
-        self.pushButton_re = QPushButton("Restart Mission")
-        self.pushButton_re.setFixedSize(120, 45)
-        button_subgrid.addWidget(self.pushButton_re, 0, 1)
-
-        self.pushButton_connect.clicked.connect(self.connect_fc)
     def disconnect_fc(self):
         if self.pushButton_connect.text() == "Disconnect" or self.cancel_flag == True:
             try:
@@ -163,6 +157,10 @@ class Window(QMainWindow):
             print("vehicle closed", self.vehicle)
         except AttributeError:
             print("e26")
+        self.pushButton_connect.setText("Connect")
+        print("e39")
+        self.pushButton_connect.setChecked(False)
+        print("e38")
         try:
             self.vehicle.flush()
             print("vehicle flushed")
@@ -175,7 +173,7 @@ class Window(QMainWindow):
             print("e28")
         try:
             print("101")
-            #self.loc_th.join()
+            self.loc_th.join()
         except:
             print("29")
         try:
@@ -185,10 +183,6 @@ class Window(QMainWindow):
                 print("shutting down sitl")
         except AttributeError:
             print("30")
-        self.pushButton_connect.setText("Connect")
-        print("e39")
-        self.pushButton_connect.setChecked(False)
-        print("e38")
         if self.cancel_flag == False:
             print("103")
             self.pushButton_connect.clicked.disconnect(self.disconnect_fc)
@@ -212,7 +206,6 @@ class Window(QMainWindow):
         self.baud = str(self.combobox2.currentText())
         print("inside combo", self.connection_string, self.baud)
     def thr(self):
-        self.sitl_csv = True
         self.i = True
         print("e18")
         try:
@@ -225,7 +218,7 @@ class Window(QMainWindow):
                     if self.vehicle and self.cancel_flag == False:
                         self.pushButton_connect.clicked.disconnect(self.connect_fc)
                         self.pushButton_connect.setText("Disconnect")
-                        self.pushButton_connect.setChecked(True)
+                        #self.pushButton_connect.setChecked(True)
                         self.timer.stop()
                         self.dialog_connect.close()
                         self.message = 1
@@ -236,8 +229,8 @@ class Window(QMainWindow):
 
                         self.listener_th = threading.Thread(target=self.listener_thr)
                         self.listener_th.start()
-                        #self.loc_th = threading.Thread(target=self.current_loc_stats)
-                        #self.loc_th.start()
+                        self.loc_th = threading.Thread(target=self.current_loc_stats)
+                        self.loc_th.start()
                 except AttributeError:
                     self.timer.stop()
                     self.dialog_connect.close()
@@ -255,7 +248,6 @@ class Window(QMainWindow):
                             self.vehicle.wait_ready(True, raise_exception=True)#false
                             self.pushButton_connect.setText("Disconnect")
                             self.pushButton_connect.setChecked(True)
-                            self.sitl_csv = False
                             self.pushButton_connect.clicked.disconnect(self.connect_fc)
                             self.timer.stop()
                             self.dialog_connect.close()
@@ -389,14 +381,15 @@ class Window(QMainWindow):
     def flight_data_stack(self):
         self.vbox = QVBoxLayout()
         self.vbox.setAlignment(Qt.AlignTop)
+        self.vbox.setContentsMargins(0,0,0,0)
         self.hbox1 = QHBoxLayout()
 
         self.hbox1.setAlignment(Qt.AlignTop)
+        self.hbox1.setContentsMargins(0,0,0,0)
         self.vbox.addLayout(self.hbox1)
 
         self.stack_wid1.setLayout(self.vbox)
         self.label = QLabel()
-        self.label.maximumSize()
         self.label.setAlignment(Qt.AlignTop)
         self.message = 0
         #####vid signal was here
@@ -409,8 +402,7 @@ class Window(QMainWindow):
         #self.gmap()
         self.frame = QFrame()
         self.vbox.addWidget(self.frame)
-        self.frame.setStyleSheet("background: blue; color: pink;")
-        self.frame.resize(1200, 200)
+        #self.frame.setMinimumWidth(1300)
         self.details()
     def show_message(self, val):
         if self.message == 1:
@@ -471,7 +463,7 @@ class Window(QMainWindow):
         self.tab2 = QWidget()
         self.tab3 = QWidget()
         self.tab4 = QWidget()
-        self.tabs.setFixedSize(1270, 163)
+        #self.tabs.setFixedSize(1270, 163)
         #self.tabs.setStyleSheet("background-color:black;color:white;")
 
         self.tabs.addTab(self.tab1, "Quick stats")
@@ -521,7 +513,7 @@ class Window(QMainWindow):
         # self.combobox_action_2.activated[str].connect(self.combo_text)
         self.gs_spinbox = QSpinBox()
         self.actiongrid.addWidget(self.gs_spinbox,1,4)
-        self.gs_spinbox.setRange(0, 50)
+        self.gs_spinbox.setRange(0, 25)
         # self.combobox_action_3.activated[str].connect(self.combo_text)
         self.alt_text = QSpinBox()
         self.actiongrid.addWidget(self.alt_text, 0, 4)
@@ -530,7 +522,7 @@ class Window(QMainWindow):
         try:
             self.vehicle.groundspeed = self.gs_spinbox.value()
         except AttributeError:
-            print("e1111")
+            self.message=2
     def set_home_location(self):
         pass
     def altitude_method(self):
@@ -632,81 +624,84 @@ class Window(QMainWindow):
         quickstats_grid.addWidget(self.label_6, 1, 2)
 
     def set_mode(self):
-        if self.mode == "Select Mode":
-            print("Select Mode")
-        elif self.mode == "Guided":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            finally:
-                self.set_mode_thr = threading.Thread(target=self.set_guidedmode_thr)
+        try:
+            if self.mode == "Select Mode":
+                print("Select Mode")
+            elif self.mode == "Guided":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                finally:
+                    self.set_mode_thr = threading.Thread(target=self.set_guidedmode_thr)
+                    self.set_mode_thr.start()
+                    print("Guided mode set")
+            elif self.mode == "Auto":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target=self.set_automode_thr)
                 self.set_mode_thr.start()
-                print("Guided mode set")
-        elif self.mode == "Auto":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target=self.set_automode_thr)
-            self.set_mode_thr.start()
-            print("Auto mode set")
-        elif self.mode == "Loiter":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target=self.set_loitermode_thr)
-            self.set_mode_thr.start()
-            print("Loiter mode set")
-        elif self.mode == "Land":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target=self.set_landmode_thr)
-            self.set_mode_thr.start()
-            print("Land mode set")
-        elif self.mode == "Takeoff":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            #self.set_mode_thr = threading.Thread(target=self.set_takeoffmode_thr)
-            #self.set_mode_thr.start()
-            print("Takeoff mode set")
-        elif self.mode == "Simple Takeoff":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target=self.set_simpletakeoff_thr)
-            self.set_mode_thr.start()
-            print("Simple Guided Takeoff mode set")
-        elif self.mode == "RTL":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target=self.set_rtlmode_thr)
-            self.set_mode_thr.start()
-            print("RTL mode set")
-        elif self.mode == "Alt Hold":
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target=self.set_altholdmode_thr)
-            self.set_mode_thr.start()
-            print("Alt Hold mode set")
-        else:
-            try:
-                self.set_mode_thr.join()
-            except AttributeError:
-                print("mode exception raised")
-            self.set_mode_thr = threading.Thread(target = self.set_stabilizemode_thr)
-            self.set_mode_thr.start()
-            print("Stabilize mode set")
+                print("Auto mode set")
+            elif self.mode == "Loiter":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target=self.set_loitermode_thr)
+                self.set_mode_thr.start()
+                print("Loiter mode set")
+            elif self.mode == "Land":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target=self.set_landmode_thr)
+                self.set_mode_thr.start()
+                print("Land mode set")
+            elif self.mode == "Takeoff":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                #self.set_mode_thr = threading.Thread(target=self.set_takeoffmode_thr)
+                #self.set_mode_thr.start()
+                print("Takeoff mode set")
+            elif self.mode == "Simple Takeoff":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target=self.set_simpletakeoff_thr)
+                self.set_mode_thr.start()
+                print("Simple Guided Takeoff mode set")
+            elif self.mode == "RTL":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target=self.set_rtlmode_thr)
+                self.set_mode_thr.start()
+                print("RTL mode set")
+            elif self.mode == "Alt Hold":
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target=self.set_altholdmode_thr)
+                self.set_mode_thr.start()
+                print("Alt Hold mode set")
+            else:
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                self.set_mode_thr = threading.Thread(target = self.set_stabilizemode_thr)
+                self.set_mode_thr.start()
+                print("Stabilize mode set")
+        except AttributeError:
+            pass
     def set_stabilizemode_thr(self):
         try:
             self.vehicle.mode = VehicleMode("STABILIZE")
@@ -833,6 +828,7 @@ class Window(QMainWindow):
     def launch_mission(self):
         try:
             self.abort_th.join()
+            self.launch_mission_th.join()
         except AttributeError:
             print("e57")
         try:
@@ -874,12 +870,13 @@ class Window(QMainWindow):
         while True:
             try:
                 print(" location: ", self.vehicle.location.global_relative_frame)
-                time.sleep(2)
+                time.sleep(10)
             except AttributeError:
                 pass
     def abort(self):
         try:
             self.set_mode_thr.join()
+            self.abort_th.join()
         except AttributeError:
             print("e155")
         try:
@@ -894,6 +891,7 @@ class Window(QMainWindow):
             if self.vehicle.location.global_relative_frame.alt >= 0:
                 self.vehicle.mode = VehicleMode("RTL")
                 self.vehicle.flush()
+                print("aborting")
                 while self.vehicle.location.global_relative_frame.alt >= 0.2:
                     time.sleep(1)
             self.mds = self.vehicle.commands
@@ -903,8 +901,11 @@ class Window(QMainWindow):
             self.mode_label.setText(self.vehicle.mode.name)
         except AttributeError:
             print("62")
-        print("commands cleared from UAV")
-        self.pushButtonlaunch.clicked.disconnect(self.abort)
+        try:
+            print("commands cleared from UAV")
+            self.pushButtonlaunch.clicked.disconnect(self.abort)
+        except TypeError as e:
+            print(str(e))
         self.pushButtonlaunch.setText("Launch Mission")
         self.pushButtonlaunch.clicked.connect(self.launch_mission)
         self.pushButton_re.clicked.disconnect(self.re_launch_mission)
@@ -993,7 +994,7 @@ class Window(QMainWindow):
                 time.sleep(3)
                 self.message = 7
                 self.wps_uploaded = True
-            except AttributeError:
+            except (AttributeError, UnboundLocalError):
                 self.message = 4
         except AttributeError:
             self.message = 2
@@ -1038,26 +1039,6 @@ class Window(QMainWindow):
         self.waypoints_table.removeRow(row)
         self.wp_count -= 1
 
-    def add_wp_onMapClick(self, message):
-        if self.p.i % 2 == 0:
-            print("lat",self.p.i, type(message))
-            self.waypoints_table.insertRow(self.wp_count)
-            self.waypoints_table.setRowHeight(self.wp_count,15)
-            remove_wp_btn = QPushButton("Remove")
-            self.waypoints_table.setCellWidget(self.wp_count, 4, remove_wp_btn)
-
-            move_wp_up_btn = QPushButton("Move Up")
-            move_wp_down_btn = QPushButton("Move Down")
-            self.waypoints_table.setCellWidget(self.wp_count, 2, move_wp_up_btn)
-            self.waypoints_table.setCellWidget(self.wp_count, 3, move_wp_down_btn)
-            remove_wp_btn.clicked.connect(self.remove_btn_clicked)
-            move_wp_up_btn.clicked.connect(self.move_wp_up_btn_clicked)
-            move_wp_down_btn.clicked.connect(self.move_wp_down_btn_clicked)
-            self.waypoints_table.setItem(self.wp_count, 0, QTableWidgetItem(message))
-        else:
-            print("lon",self.p.i, message)
-            self.waypoints_table.setItem(self.wp_count, 1, QTableWidgetItem(message))
-            self.wp_count +=1
     def add_wp(self):
         self.waypoints_table.insertRow(self.wp_count)
         self.waypoints_table.setRowHeight(self.wp_count, 15)
@@ -1078,11 +1059,7 @@ class Window(QMainWindow):
         options |= QFileDialog.DontUseNativeDialog
         filename, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "",
                                                   "CSV Format Files (*.csv)", options=options)
-        try:
-            if self.sitl_csv:
-                filename = "wp_sitl.csv"
-        except AttributeError:
-            pass
+
         if filename:
             with open(filename, 'r') as csvfile:
                 # creating a csv reader object
@@ -1121,52 +1098,65 @@ class Window(QMainWindow):
         """gmap = gmplot.GoogleMapPlotter(28.5355, 77.3910, 18)
         #gmap = gmplot.GoogleMapPlotter.from_geocode("San Francisco")
         gmap.apikey = "AIzaSyDeRNMnZ__VnQDiATiuz4kPjF_c9r1kWe8"
-        gmap.draw("map_key.html")
+        gmap.draw("my_gmap.html")
         web = QWebEngineView()
         web.resize(620, 400)
-        web.load(QUrl("map_key.html"))
+        web.load(QUrl("my_gmap.html"))
         web.show()
         self.hbox1.addWidget(web)"""
 
     def vehicle_trail(self):
-        '''
-                try:
+        pass
+        """try:
             while True:
                 location_prev = (self.vehicle.location.global_relative_frame.lat, self.vehicle.location.global_relative_frame.lon)
                 time.sleep(2)
                 location_new = (self.vehicle.location.global_relative_frame.lat, self.vehicle.location.global_relative_frame.lon)
-                folium.PolyLine(locations = [location_prev, location_new], line_opacity = 0.5).add_to(self.my_map1)
+                folium.PolyLine(locations = [location_prev, location_new], line_opacity = 0.5).add_to(self.my_folmap)
         except AttributeError:
-            print("e69")
+            print("e69")"""
+    def add_wp_onMapClick(self, message):
+        if self.p.i % 2 == 0:
+            self.click_location = []
+            print("lat",self.p.i, type(message))
+            self.waypoints_table.insertRow(self.wp_count)
+            self.waypoints_table.setRowHeight(self.wp_count,15)
+            remove_wp_btn = QPushButton("Remove")
+            self.waypoints_table.setCellWidget(self.wp_count, 4, remove_wp_btn)
+            move_wp_up_btn = QPushButton("Move Up")
+            move_wp_down_btn = QPushButton("Move Down")
+            self.waypoints_table.setCellWidget(self.wp_count, 2, move_wp_up_btn)
+            self.waypoints_table.setCellWidget(self.wp_count, 3, move_wp_down_btn)
+            remove_wp_btn.clicked.connect(self.remove_btn_clicked)
+            move_wp_up_btn.clicked.connect(self.move_wp_up_btn_clicked)
+            move_wp_down_btn.clicked.connect(self.move_wp_down_btn_clicked)
+            self.waypoints_table.setItem(self.wp_count, 0, QTableWidgetItem(message))
+            self.click_location.append(message)
+        else:
+            print("lon",self.p.i, message)
+            self.waypoints_table.setItem(self.wp_count, 1, QTableWidgetItem(message))
+            self.wp_count +=1
+            self.click_location.append(message)
 
-        '''
-        pass
-    def fol2(self):
-        self.my_map1 = folium.Map(location=[28.5011226, 77.4099794],zoom_start = 2)
-        f = open("/home/vivek/Documents/Johnnette_tech/gcs/latlng.html", "r")
-        self.my_map1.template_vars.update({'lat_lng_pop': f.read()})
-        self.my_map1.create_map("/home/vivek/Documents/Johnnette_tech/gcs/my_map1.html")
-        web = QWebEngineView()
-        web.resize(620, 400)
-        web.setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, True)
-        web.setAttribute(QWebEngineSettings.AllowWindowActivationFromJavaScript, True)
-        web.load(QUrl("file:///home/vivek/Documents/Johnnette_tech/gcs/my_map1.html"))
-        web.show()
-        self.hbox1.addWidget(web)
     def fol(self):
-        self.my_map1 = folium.Map(location=[28.5011226, 77.4099794], zoom_start=2)
+        self.my_folmap = folium.Map(location=[28.5011226, 77.4099794], zoom_start=10)
         f = open("latlng.html", "r")
-        self.my_map1.template_vars.update({'lat_lng_pop': f.read()})
-        self.my_map1.create_map("my_map1.html")
+        self.my_folmap.template_vars.update({'lat_lng_pop': f.read()})
+        #self.my_folmap.polygon_marker(location=[28.5011226, 77.4099794], fill_color="red", fill_opacity=1, radius=10)
+        #self.my_folmap.simple_marker(location=[28.5011226, 77.4099794], marker_color="red")
+        #self.my_folmap.click_for_marker()
+        #self.my_folmap.circle_marker(location=self.click_location, fill_color="red", fill_opacity=1, radius=3)
+        #folium.CircleMarker(location=(28.5011226, 77.4099794),radius=5).add_to(self.my_folmap)
+        self.my_folmap.create_map("my_folmap.html")
         self.web = QWebEngineView()
-        self.web.resize(620, 400)
+        #self.web.resize(600, 420)
         self.p = WebPage()
         self.web.setPage(self.p)
         #self.web.loadFinished.connect(self.onLoadFinished)
-        self.web.load(QUrl("file:///home/vivek/Documents/Johnnette_tech/GroundControlStation/my_map1.html"))
-        #self.web.load(QUrl("my_map1.html"))
+        self.web.load(QUrl("file:///home/vivek/Documents/Johnnette_tech/GroundControlStation/my_folmap.html"))
+        #self.web.load(QUrl("my_folmap.html"))
         self.web.show()
-        self.hbox1.addWidget(self.web)
+        self.hbox1.addWidget(self.web, Qt.AlignCenter)
         self.p.loc_signal.connect(self.add_wp_onMapClick)
     def onLoadFinished(self, ok):
         if ok:
@@ -1181,8 +1171,8 @@ class Window(QMainWindow):
         convertToQtFormat = QImage(rgbImage.data, rgbImage.shape[1], rgbImage.shape[0],
                                    rgbImage.shape[2] * rgbImage.shape[1], QImage.Format_RGB888)
         convertToQtFormat = QPixmap.fromImage(convertToQtFormat)
-        pixmap = QPixmap(convertToQtFormat)
-        img = pixmap.scaled(820, 400)
+        img = QPixmap(convertToQtFormat)
+        img = img.scaled(600, 470)
         return img
 class WebPage(QWebEnginePage):
     loc_signal = pyqtSignal(str)
@@ -1199,18 +1189,3 @@ class VideoThread(QThread):
         while True:
             val = Window.video(self, self.cap)
             self.vid_signal.emit(val)
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    splash_pix = QPixmap("logo.png")
-    #splash_pix.scaled(500, 250)
-    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
-    #splash.setFixedSize(500, 250)
-    splash.show()
-    def start():
-        splash.close()
-        global gui
-        gui = Window()
-        gui.show()
-    QTimer.singleShot(5000, start)
-    sys.exit(app.exec_())
-
