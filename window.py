@@ -1,4 +1,4 @@
-#https://firmware.ardupilot.org/Copter/stable-4.0.2/
+
 from dronekit import *
 import dronekit.mavlink
 
@@ -135,10 +135,7 @@ class Window(QMainWindow):
                 print("disconnect fc method")
             except AttributeError:
                 print("e25")
-            try:
-                self.wps_uploaded = False
-            except AttributeError:
-                pass
+
     def disconnect_fc_thread(self):
         print("disconnect_fc_thread method")
         try:
@@ -173,7 +170,7 @@ class Window(QMainWindow):
             print("e28")
         try:
             print("101")
-            self.loc_th.join()
+            #self.loc_th.join()
         except:
             print("29")
         try:
@@ -189,14 +186,14 @@ class Window(QMainWindow):
             self.pushButton_connect.clicked.connect(self.connect_fc)
             print("e37")
         try:
-            if self.wps_uploaded == False:
-                self.pushButtonlaunch.clicked.disconnect(self.abort)
-                self.pushButtonlaunch.setText("Launch Mission")
-                self.pushButtonlaunch.clicked.connect(self.launch_mission)
-                print("104")
-        except (AttributeError, TypeError):
-            print("105")
-        #print("buttan pressed dis fc thr", self.pushButton_connect.isChecked())
+            self.pushButtonlaunch.clicked.disconnect(self.abort)
+            self.pushButtonlaunch.setText("Launch Mission")
+            self.pushButtonlaunch.clicked.connect(self.launch_mission)
+            print("104")
+        except Exception as e:
+            print("501", e)
+        #print("buttan presse
+        # d dis fc thr", self.pushButton_connect.isChecked())
         print("e40")
         self.combobox1.setCurrentIndex(0)
         self.combobox2.setCurrentIndex(0)
@@ -229,8 +226,8 @@ class Window(QMainWindow):
 
                         self.listener_th = threading.Thread(target=self.listener_thr)
                         self.listener_th.start()
-                        self.loc_th = threading.Thread(target=self.current_loc_stats)
-                        self.loc_th.start()
+                        #self.loc_th = threading.Thread(target=self.current_loc_stats)
+                        #self.loc_th.start()
                 except AttributeError:
                     self.timer.stop()
                     self.dialog_connect.close()
@@ -258,8 +255,8 @@ class Window(QMainWindow):
                             self.alt_text.setValue(15)
                             self.listener_th = threading.Thread(target=self.listener_thr)
                             self.listener_th.start()
-                            self.loc_th = threading.Thread(target=self.current_loc_stats)
-                            self.loc_th.start()
+                            #self.loc_th = threading.Thread(target=self.current_loc_stats)
+                            #self.loc_th.start()
                     except (Exception, dronekit.APIException,TypeError) as e:
                         self.timer.stop()
                         self.dialog_connect.close()
@@ -489,9 +486,9 @@ class Window(QMainWindow):
         self.actiongrid.addWidget(action_btn_3, 0, 3)
         action_btn_3.clicked.connect(self.altitude_method)
 
-        action_btn_4 = QPushButton("SET HOME LOCATION")
+        action_btn_4 = QPushButton("Download Logs")
         self.actiongrid.addWidget(action_btn_4, 1, 1)
-        action_btn_4.clicked.connect(self.set_home_location)
+        action_btn_4.clicked.connect(self.download_logs)
 
         action_btn_5 = QPushButton("FORCE DISARM")
         self.actiongrid.addWidget(action_btn_5, 1, 2)
@@ -523,8 +520,11 @@ class Window(QMainWindow):
             self.vehicle.groundspeed = self.gs_spinbox.value()
         except AttributeError:
             self.message=2
-    def set_home_location(self):
-        pass
+
+    def download_logs(self):
+        logmsg = self.vehicle.message_factory.log_request_data_encode(0, 0, 0, 0xffff)
+        ret = self.vehicle.send_mavlink(logmsg)
+        print(ret)
     def altitude_method(self):
         try:
             if self.vehicle:
@@ -807,7 +807,8 @@ class Window(QMainWindow):
         except AttributeError:
             print("201")
         try:
-            self.pushButton_re.clicked.connect(self.re_launch_mission)
+            print("123456 error")
+            #self.pushButton_re.clicked.connect(self.re_launch_mission)
         except TypeError:
             print("60")
     def re_launch_mission(self):
@@ -832,7 +833,7 @@ class Window(QMainWindow):
         except AttributeError:
             print("e57")
         try:
-            if self.wps_uploaded == True:
+            if self.wps_uploaded2uav == True:
                 self.launch_mission_th = threading.Thread(target=self.launch_mission_th_method)
                 self.launch_mission_th.start()
             else:
@@ -892,11 +893,12 @@ class Window(QMainWindow):
                 self.vehicle.mode = VehicleMode("RTL")
                 self.vehicle.flush()
                 print("aborting")
+                self.mode_label.setText("Mission Aborted")
                 while self.vehicle.location.global_relative_frame.alt >= 0.2:
                     time.sleep(1)
             self.mds = self.vehicle.commands
             self.mds.clear()
-            self.wps_uploaded = False
+            self.wps_uploaded2uav = False
             self.vehicle.flush()
             self.mode_label.setText(self.vehicle.mode.name)
         except AttributeError:
@@ -908,7 +910,7 @@ class Window(QMainWindow):
             print(str(e))
         self.pushButtonlaunch.setText("Launch Mission")
         self.pushButtonlaunch.clicked.connect(self.launch_mission)
-        self.pushButton_re.clicked.disconnect(self.re_launch_mission)
+        #self.pushButton_re.clicked.disconnect(self.re_launch_mission)
     def increase_throttle(self):
         pass
     def force_arm(self):
@@ -993,7 +995,7 @@ class Window(QMainWindow):
                 cmds.upload()
                 time.sleep(3)
                 self.message = 7
-                self.wps_uploaded = True
+                self.wps_uploaded2uav = True
             except (AttributeError, UnboundLocalError):
                 self.message = 4
         except AttributeError:
@@ -1185,7 +1187,27 @@ class VideoThread(QThread):
     def __init__(self, parent=None):
         super(VideoThread,self).__init__(parent)
         self.cap = cv2.VideoCapture(0)
+        self._lock = threading.Lock()
+        self.running = False
+    def stop(self):
+        self.running = False
+        print('received stop signal from window.')
+        with self._lock:
+            self._do_before_done()
+
+    def _do_work(self):
+        val = Window.video(self, self.cap)
+        self.vid_signal.emit(val)
+
+    def _do_before_done(self):
+        print('waiting 3 seconds before thread done..')
+        for i in range(3, 0, -1):
+            print('{0} seconds left...'.format(i))
+            self.sleep(1)
+        print('ok, thread done.')
     def run(self):
-        while True:
-            val = Window.video(self, self.cap)
-            self.vid_signal.emit(val)
+        self.running = True
+        while self.running:
+            with self._lock:
+                self._do_work()
+
