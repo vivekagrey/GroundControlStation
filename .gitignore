@@ -1,10 +1,7 @@
-droketest.py
-dronetest.py
-subprocess_test.py
+dronekitTest.py
 uploader.py
 requirement document
 git_cmds
-text
 vehicle.py
 /venv/
 __pycache__/

@@ -16,4 +16,5 @@ if __name__ == "__main__":
         gui = window.Window()
         gui.show()
     QTimer.singleShot(5000, start)
+    app.aboutToQuit.connect(window.VideoThread.stop)
     sys.exit(app.exec_())

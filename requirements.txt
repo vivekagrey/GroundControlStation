@@ -22,9 +22,11 @@ pyparsing==2.4.6
 PyQt5==5.11.3
 PyQt5-sip==4.19.19
 requests==2.23.0
-sip==4.19.8
 six==1.14.0
 toml==0.10.0
 urllib3==1.25.8
 virtualenv==20.0.15
 zipp==3.1.0
+dronekit_sitl==3.3.0
+serial==0.0.97
+pyserial==3.4
