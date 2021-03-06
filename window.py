@@ -1,4 +1,4 @@
-
+# corrupted size vs. prev_size in fastbins
 from dronekit import *
 import dronekit.mavlink
 from pymavlink import mavutil
@@ -10,6 +10,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtWebEngineWidgets import *
 import threading
 import logging
+#import exceptions
+import socket
 
 class QPlainTextEditLogger(logging.Handler, QObject):
     appendPlainText = pyqtSignal(str)
@@ -103,9 +105,10 @@ class Window(QMainWindow):
         #self.pushButton_connect.setCheckable(True)
         #self.pushButton_connect.toggle()
         h_label = QLabel()
-        pix = QPixmap('logo250x100.jpg')
-        pix.scaled(250, 700)
-        #h_label.setFixedSize(250,100)
+        pix = QPixmap('logo.jpg')
+        #100widthx70height px
+        pix.scaledToHeight(70)
+        h_label.setFixedSize(100,70)
         h_label.setPixmap(pix)
         h_label.show()
         self.head_grid_layout.addWidget(h_label,0,0)
@@ -177,67 +180,43 @@ class Window(QMainWindow):
                 print("e25")
 
     def disconnect_fc_thread(self):
-        print("disconnect_fc_thread method")
+        # self.label_1.setText("yaw")
+        # self.label_2.setText("gpsinfo")
+        # self.label_3.setText("voltage")
+        # self.label_4.setText("altitude")
+        # self.label_5.setText("groundspeed")
+        # self.label_6.setText("verticalspeed")
         try:
-            self.listener_th.join()
-        except AttributeError:
-            print("36")
-        finally:
-            self.label_1.setText("yaw")
-            self.label_2.setText("gpsinfo")
-            self.label_3.setText("voltage")
-            self.label_4.setText("altitude")
-            self.label_5.setText("groundspeed")
-            self.label_6.setText("verticalspeed")
-        try:
+            self.vehicle.remove_attribute_listener('mode', self.sysStatus_callback)
+            self.vehicle.remove_attribute_listener('attitude', self.yaw_callback)
+            self.vehicle.remove_attribute_listener('location.global_relative_frame', self.altitude_callback)
+            self.vehicle.remove_attribute_listener('gps_0', self.gpsinfo_callback)
+            self.vehicle.remove_attribute_listener('voltage', self.voltage_callback)
+            self.vehicle.remove_attribute_listener('groundspeed', self.groundspeed_callback)
+            self.vehicle.remove_attribute_listener('velocity', self.verticalspeed_callback)
             self.vehicle.close()
-            print("vehicle closed", self.vehicle)
-        except AttributeError:
-            print("e26")
+            print("vehicle closed")
+
+        except Exception as e:
+            print(e)
         self.pushButton_connect.setText("Connect")
-        print("e39")
         self.pushButton_connect.setChecked(False)
-        print("e38")
-        try:
-            self.vehicle.flush()
-            print("vehicle flushed")
-        except AttributeError:
-            print("e27")
         try:
             del self.vehicle
             print("vehicle deleted")
         except AttributeError:
-            print("e28")
+            print("No Vehicle")
         try:
-            print("101")
-            #self.loc_th.join()
-        except:
-            print("29")
-        try:
-            print("102")
             if self.sitl is not None:
                 self.sitl.stop()
                 print("shutting down sitl")
         except AttributeError:
-            print("30")
+            print("No SITL")
         if self.cancel_flag == False:
-            print("103")
             self.pushButton_connect.clicked.disconnect(self.disconnect_fc)
             self.pushButton_connect.clicked.connect(self.connect_fc)
-            print("e37")
-        try:
-            self.pushButtonlaunch.clicked.disconnect(self.abort)
-            self.pushButtonlaunch.setText("Launch Mission")
-            self.pushButtonlaunch.clicked.connect(self.launch_mission)
-            print("104")
-        except Exception as e:
-            print("501", e)
-        #print("buttan presse
-        # d dis fc thr", self.pushButton_connect.isChecked())
-        print("e40")
         self.combobox1.setCurrentIndex(0)
         self.combobox2.setCurrentIndex(0)
-        print("e41")
     def combo_text(self):
         self.connection_string = str(self.combobox1.currentText())
         self.baud = str(self.combobox2.currentText())
@@ -254,9 +233,10 @@ class Window(QMainWindow):
         logTextBox = QPlainTextEditLogger(self)
         # You can format what is printed to text box
         logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(logTextBox)
-        logging.getLogger().setLevel(logging.DEBUG)
-
+        self.logger = logging.getLogger()
+        self.logger.addHandler(logTextBox)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.info("LOGGER")
         # self.autopilot_logger = logging.getLogger()
         # self.autopilot_logger.addHandler(logTextBox)
         # # You can control the logging level
@@ -290,8 +270,7 @@ class Window(QMainWindow):
     #     #self.label_logs.setText(self.statustext_severity[sev]+": autopilot: "+msg)
     #     # self.log_msg.valChanged.connect(self.test)
     #     # self.log_msg.emit(m)
-    
-    def thr(self):
+    def test_thr(self):
         self.i = True
         print("e18")
         try:
@@ -325,8 +304,8 @@ class Window(QMainWindow):
                 # self.vehicle.add_message_listener('STATUSTEXT', self.statustext_callback)
                 # self.vehicle.wait_ready(raise_exception=False)
                 io = 0
+                waiting_params = ['parameters', 'gps_0', 'armed', 'mode', 'attitude', 'airspeed']
                 while (self.vehicle.mode == None or self.vehicle.airspeed == None or self.vehicle.parameters == None or self.vehicle.gps_0 == None or self.vehicle.armed == None or self.vehicle.attitude == None):   
-                    waiting_params = [  "armed", 'mode',"parameters", 'airspeed',"gps_0","attitude"]
                     #vehicle.wait_ready('mode','airspeed',"parameters", "gps_0", "armed","attitude")
                     self.vehicle.wait_ready(waiting_params[io])
                     print("waiting...", waiting_params[io])
@@ -353,8 +332,8 @@ class Window(QMainWindow):
                         self.altitude = 15
                         self.alt_text.setValue(15)
 
-                        self.listener_th = threading.Thread(target=self.listener_thr)
-                        self.listener_th.start()
+                        # self.listener_th = threading.Thread(target=self.listener_thr)
+                        # self.listener_th.start()
                         #self.loc_th = threading.Thread(target=self.current_loc_stats)
                         #self.loc_th.start()
                         print("100000")
@@ -369,8 +348,8 @@ class Window(QMainWindow):
                 if self.connection_string != "Select/Enter COM Port" and self.baud != "Select/Enter Baud":
                     self.vehicle = connect(self.connection_string, wait_ready=False, baud=self.baud)
                     io = 0
+                    waiting_params = ['parameters', 'gps_0', 'armed', 'mode', 'attitude', 'airspeed']
                     while (self.vehicle.mode == None or self.vehicle.airspeed == None or self.vehicle.parameters == None or self.vehicle.gps_0 == None or self.vehicle.armed == None or self.vehicle.attitude == None):   
-                        waiting_params = [  "armed", 'mode',"parameters", 'airspeed',"gps_0","attitude"]
                         #vehicle.wait_ready('mode','airspeed',"parameters", "gps_0", "armed","attitude")
                         self.vehicle.wait_ready(waiting_params[io])
                         print("waiting...", waiting_params[io])
@@ -396,8 +375,8 @@ class Window(QMainWindow):
                             self.pushButton_connect.clicked.connect(self.disconnect_fc)
                             self.altitude = 15
                             self.alt_text.setValue(15)
-                            self.listener_th = threading.Thread(target=self.listener_thr)
-                            self.listener_th.start()
+                            # self.listener_th = threading.Thread(target=self.listener_thr)
+                            # self.listener_th.start()
                             #self.loc_th = threading.Thread(target=self.current_loc_stats)
                             #self.loc_th.start()
                     except (Exception, dronekit.APIException,TypeError) as e:
@@ -416,9 +395,20 @@ class Window(QMainWindow):
                         print("e2", str(e))
                 else:
                     print("e14")
-                    self.message = 5
-        #except (serial.SerialException, TypeError, ConnectionRefusedError, AttributeError, FileNotFoundError, ValueError, ConnectionError, APIException, dronekit.mavlink):
-        except (Exception, dronekit.APIException, TypeError) as e:
+                    self.message = 5        
+            print("adding listeners")
+            self.previous_loc = self.vehicle.location.global_relative_frame
+            self.vehicleLocationChanged(initial=True, lat = str(self.previous_loc.lat), lng = str(self.previous_loc.lon))
+            self.vehicle.add_attribute_listener('attitude', self.yaw_callback)  #
+            self.vehicle.add_attribute_listener('location.global_relative_frame', self.altitude_callback)  # in m/s
+            self.vehicle.add_attribute_listener('gps_0', self.gpsinfo_callback)  # in m/s
+            self.vehicle.add_attribute_listener('voltage', self.voltage_callback)  # in m/s
+            self.vehicle.add_attribute_listener('groundspeed', self.groundspeed_callback)  # in m/s
+            self.vehicle.add_attribute_listener('velocity', self.verticalspeed_callback)  # in m/s
+            self.vehicle.add_attribute_listener('mode', self.sysStatus_callback)
+            self.logger.info("Default takeoff altitude: "+str(self.altitude))
+            print("adding listeners done")
+        except (Exception, dronekit.APIException, TypeError, socket.error) as e:
             try:
                 self.combobox1.setCurrentIndex(0)
                 self.combobox2.setCurrentIndex(0)
@@ -441,6 +431,173 @@ class Window(QMainWindow):
                     self.message = 2
         self.mode_label.setText(str(self.vehicle.mode.name))
         self.details_label.setText("")
+    def thr(self):
+        self.i = True
+        try:
+           
+        #     self._mavlink_statustext_severity = {
+        #     0: logging.CRITICAL,
+        #     1: logging.CRITICAL,
+        #     2: logging.CRITICAL,
+        #     3: logging.ERROR,
+        #     4: logging.WARNING,
+        #     5: logging.INFO,
+        #     6: logging.INFO,
+        #     7: logging.DEBUG
+        # }
+        #     self.statustext_severity = {
+        #     0: "CRITICAL",
+        #     1: "CRITICAL",
+        #     2: "CRITICAL",
+        #     3: "ERROR",
+        #     4: "WARNING",
+        #     5: "INFO",
+        #     6: "INFO",
+        #     7: "DEBUG"
+        # }
+            if self.connection_string == "SITL" or self.connection_string == "127.0.0.1:14540":
+                import dronekit_sitl
+                if self.connection_string == "SITL":
+                    self.sitl = dronekit_sitl.start_default(lat=28.59622800000000, lon=77.38277600000000)
+                    self.connection_string = self.sitl.connection_string()
+                self.vehicle = connect(self.connection_string, wait_ready=False)
+                # self.vehicle.add_message_listener('STATUSTEXT', self.statustext_callback)
+                # self.vehicle.wait_ready(raise_exception=False)
+                io = 0
+                while (self.vehicle.mode == None or self.vehicle.airspeed == None or self.vehicle.parameters == None or self.vehicle.gps_0 == None or self.vehicle.armed == None or self.vehicle.attitude == None):   
+                    waiting_params = ['parameters', 'gps_0', 'armed', 'mode', 'attitude', 'airspeed']
+                    #vehicle.wait_ready('mode','airspeed',"parameters", "gps_0", "armed","attitude")
+                    self.vehicle.wait_ready(waiting_params[io])
+                    print("waiting...", waiting_params[io])
+                    io+=1
+                    self.progressbar.setValue(io*(100/6))
+                    time.sleep(0.5)
+                if "px4" in str(self.vehicle.version).lower():
+                    self.px = True
+                else:
+                    self.px = False
+                try:
+                    if self.vehicle and self.cancel_flag == False:
+                        self.pushButton_connect.clicked.disconnect(self.connect_fc)
+                        self.pushButton_connect.setText("Disconnect")
+                        #self.pushButton_connect.setChecked(True)
+                        #self.timer.stop()
+                        self.dialog_connect.close()
+                        self.message = 1
+                        self.pushButton_connect.clicked.connect(self.disconnect_fc)
+                        self.altitude = 10
+                        self.alt_text.setValue(10)
+
+                        #self.listener_th = threading.Thread(target=self.listener_thr)
+                        #self.listener_th.start()
+                        #self.loc_th = threading.Thread(target=self.current_loc_stats)
+                        #self.loc_th.start()
+                        print("ddone")
+                except AttributeError as e:
+                    print(e)
+                    #self.timer.stop()
+                    self.dialog_connect.close()
+                    self.message = 2
+                    self.i = False
+                    print("e3")
+            else:
+                if self.connection_string != "Select/Enter COM Port" and self.baud != "Select/Enter Baud":
+                    self.vehicle = connect(self.connection_string, wait_ready=False, baud=self.baud)
+                    io = 0
+                    print("att p", self.vehicle.mode, self.vehicle.airspeed,self.vehicle.parameters, self.vehicle.gps_0, self.vehicle.armed, self.vehicle.attitude)
+                    while (self.vehicle.mode == None or self.vehicle.airspeed == None or self.vehicle.parameters == None or self.vehicle.gps_0 == None or self.vehicle.armed == None or self.vehicle.attitude == None):   
+                        waiting_params = ['parameters', 'gps_0', 'armed', 'mode', 'attitude', 'airspeed']
+                        #vehicle.wait_ready('mode','airspeed',"parameters", "gps_0", "armed","attitude")
+                        self.vehicle.wait_ready(waiting_params[io], timeout = 100)
+                        print("waiting.....", waiting_params[io])
+                        io+=1
+                        self.progressbar.setValue(io*(100/6))
+                        time.sleep(0.5)
+                        print("after connection.....",self.vehicle)
+                    if io<3:
+                        self.progressbar.setValue(33)
+                    try:
+                        self.vehicle.wait_ready(True)
+                    except Exception as e:
+                        print(e)
+                    if io<3:
+                        self.progressbar.setValue(66)
+                    time.sleep(2)
+                    self.progressbar.setValue(100)
+                    if "px4" in str(self.vehicle.version).lower():
+                        self.px = True
+                    else:
+                        self.px = False
+                    try:
+                        if self.vehicle and self.cancel_flag == False:
+                            self.pushButton_connect.setText("Disconnect")
+                            self.pushButton_connect.setChecked(True)
+                            self.pushButton_connect.clicked.disconnect(self.connect_fc)
+                            #self.timer.stop()
+                            self.dialog_connect.close()
+                            print("e9")
+                            self.message = 1
+                            self.pushButton_connect.clicked.connect(self.disconnect_fc)
+                            self.altitude = 10
+                            self.alt_text.setValue(10)
+                            # self.listener_th = threading.Thread(target=self.listener_thr)
+                            # self.listener_th.start()
+                            #self.loc_th = threading.Thread(target=self.current_loc_stats)
+                            #self.loc_th.start()
+                    except (Exception, dronekit.APIException,TypeError) as e:
+                        #self.timer.stop()
+                        self.dialog_connect.close()
+                        self.message = 2
+                        self.i = False
+                        try:
+                            self.vehicle.close()
+                        except Exception as e:
+                            print(e)
+                        try:
+                            del self.vehicle
+                        except Exception as e:
+                            print(e)
+                        print("e2", str(e))
+                else:
+                    print("e14")
+                    self.message = 5
+            print("adding listeners")
+            self.previous_loc = self.vehicle.location.global_relative_frame
+            self.vehicleLocationChanged(initial=True, lat = str(self.previous_loc.lat), lng = str(self.previous_loc.lon))
+            self.vehicle.add_attribute_listener('attitude', self.yaw_callback)  #
+            self.vehicle.add_attribute_listener('location.global_relative_frame', self.altitude_callback)  # in m/s
+            self.vehicle.add_attribute_listener('gps_0', self.gpsinfo_callback)  # in m/s
+            self.vehicle.add_attribute_listener('voltage', self.voltage_callback)  # in m/s
+            self.vehicle.add_attribute_listener('groundspeed', self.groundspeed_callback)  # in m/s
+            self.vehicle.add_attribute_listener('velocity', self.verticalspeed_callback)  # in m/s
+            self.vehicle.add_attribute_listener('mode', self.sysStatus_callback)
+            self.logger.info("Default takeoff altitude: "+str(self.altitude))
+            print("adding listeners done")
+        except (Exception, dronekit.APIException, TypeError) as e:
+            try:
+                self.combobox1.setCurrentIndex(0)
+                self.combobox2.setCurrentIndex(0)
+                time.sleep(1)
+                #self.timer.stop()
+                self.dialog_connect.close()
+                self.tt = True
+                print("e13",  str(e))
+                if self.i:
+                    self.message = 6
+                    print("e8")
+            except AttributeError:
+                try:
+                    time.sleep(1)
+                    #self.timer.stop()
+                    self.dialog_connect.close()
+                    self.message = 8
+                    print("e7")
+                except AttributeError:
+                    self.message = 2
+        self.mode_label.setText(str(self.vehicle.mode.name))
+        #self.vehicle.location.global_relative_frame.lat
+        self.details_label.setText("")
+        print("connection ran successfully")
     def connect_fc(self):
         try:
             self.cancel_th.join()
@@ -461,12 +618,12 @@ class Window(QMainWindow):
                 #self.dis_thr.join()
             except AttributeError:
                 print("e33")
-            self.th = threading.Thread(target=self.thr)
+            self.th = threading.Thread(target=self.test_thr)
             self.th.start()
             print("1003")
             self.pushButton_connect.setChecked(False)
             try:
-                if self.connection_string != "Select/Enter COM Port" and self.baud != "Select/Enter Baud" or self.connection_string == "SITL" or self.connection_string == "127.0.0.1:14540":
+                if self.connection_string != "Select/Enter COM Port" and self.baud != "Select/Enter Baud" or self.connection_string == "SITL" or self.connection_string == "127.0.0.1:14540" :#or self.connection_string == "/dev/ttyACM0" or self.connection_string == "/dev/ttyACM1":
                     print("1004")
                     self.dialog_connect = QDialog()
                     self.dia_vbox = QVBoxLayout()
@@ -500,7 +657,8 @@ class Window(QMainWindow):
                         self.dialog_connect.close()
             except AttributeError:
                 print("e4")
-            self.altitude = 15
+            self.altitude = 10
+            self.alt_text.setValue(10)
             print("1006")
             self.alt_text.setValue(15)
     # def start_timer(self):
@@ -547,60 +705,6 @@ class Window(QMainWindow):
         self.vbox.addWidget(self.frame)
         #self.frame.setMinimumWidth(1300)
         self.details()
-    def get_distance_metres(self, aLocation1, aLocation2):
-        """
-        Returns the ground distance in metres between two LocationGlobal objects.
-
-        This method is an approximation, and will not be accurate over large distances and close to the 
-        earth's poles. It comes from the ArduPilot test code: 
-        https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
-        """
-        dlat = aLocation2.lat - aLocation1.lat
-        dlong = aLocation2.lon - aLocation1.lon
-        return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
-    def position_messages_from_tlog(self, filename):
-        """
-        Given telemetry log, get a series of wpts approximating the previous flight
-        """
-        # Pull out just the global position msgs
-        messages = []
-        mlog = mavutil.mavlink_connection(filename)
-        while True:
-            try:
-                m = mlog.recv_match(type=['GLOBAL_POSITION_INT'])
-                if m is None:
-                    break
-            except Exception:
-                break
-            # ignore we get where there is no fix:
-            if m.lat == 0:
-                continue
-            messages.append(m)
-
-        # Shrink the number of points for readability and to stay within autopilot memory limits. 
-        # For coding simplicity we:
-        #   - only keep points that are with 3 metres of the previous kept point.
-        #   - only keep the first 100 points that meet the above criteria.
-        num_points = len(messages)
-        keep_point_distance=3 #metres
-        kept_messages = []
-        kept_messages.append(messages[0]) #Keep the first message
-        pt1num=0
-        pt2num=1
-        while True:
-            #Keep the last point. Only record 99 points.
-            if pt2num==num_points-1 or len(kept_messages)==99:
-                kept_messages.append(messages[pt2num])
-                break
-            pt1 = LocationGlobalRelative(messages[pt1num].lat/1.0e7,messages[pt1num].lon/1.0e7,0)
-            pt2 = LocationGlobalRelative(messages[pt2num].lat/1.0e7,messages[pt2num].lon/1.0e7,0)
-            distance_between_points = self.get_distance_metres(pt1,pt2)
-            if distance_between_points > keep_point_distance:
-                kept_messages.append(messages[pt2num])
-                pt1num=pt2num
-            pt2num=pt2num+1
-
-        return kept_messages
     def show_message(self, val):
         if self.message == 1:
             self.message = 0
@@ -671,28 +775,62 @@ class Window(QMainWindow):
         self.action()
         self.quick_stats()
         self.autopilot_logs_tab()
-
+    def go_to_wp(self):
+        self.vehicle.mode = VehicleMode("GUIDED")
+        lat = float(self.goto_lat.text())
+        lon = float(self.goto_lon.text())
+        alt = float(self.goto_alt.text())
+        point = LocationGlobalRelative(lat, lon, alt)
+        self.vehicle.simple_goto(location = point, groundspeed=self.gs_spinbox.value())
     def action(self):
         self.actiongrid = QGridLayout()
         self.tab3.setLayout(self.actiongrid)
         action_btn_1 = QPushButton("SET MODE")
         self.actiongrid.addWidget(action_btn_1, 0, 1)
         action_btn_1.clicked.connect(self.set_mode)
-        action_btn_2 = QPushButton("FORCE ARM")
+        action_btn_2 = QPushButton("ARM")
         self.actiongrid.addWidget(action_btn_2, 0, 2)
         action_btn_2.clicked.connect(self.force_arm)
 
-
-
-        action_btn_3 = QPushButton("SET ALTITUDE(in m)")
-        self.actiongrid.addWidget(action_btn_3, 0, 3)
+        action_btn_3 = QPushButton("SET TAKEOFF ALTITUDE")
+        self.actiongrid.addWidget(action_btn_3, 1, 1)
         action_btn_3.clicked.connect(self.altitude_method)
 
-        action_btn_4 = QPushButton("Download Logs")
-        self.actiongrid.addWidget(action_btn_4, 1, 1)
-        #action_btn_4.clicked.connect(self.download_logs)
+        action_btn_4 = QPushButton("GO TO WP")
+        self.actiongrid.addWidget(action_btn_4, 0, 3)
+        action_btn_4.clicked.connect(self.go_to_wp)
+        my_regex = QRegExp("^-?[0-9]\d{0,1}(\.\d+)?$")
+        my_validator_lat = QRegExpValidator(my_regex)
 
-        action_btn_5 = QPushButton("FORCE DISARM")
+        my_regex = QRegExp("\d{1,3}\.\d+")
+        my_validator_lon = QRegExpValidator(my_regex)
+
+        my_regex = QRegExp("\d{1,5}\.\d+")
+        my_validator_alt = QRegExpValidator(my_regex)
+
+        goto_grid = QGridLayout()
+        self.goto_lat = QLineEdit()
+        self.goto_lat.setMaximumWidth(80)
+        self.goto_lat.setPlaceholderText("lattitude")
+        self.goto_lat.setValidator(my_validator_lat)
+
+        self.goto_lon = QLineEdit()
+        self.goto_lon.setMaximumWidth(80)
+        self.goto_lon.setPlaceholderText("longitude")
+        self.goto_lon.setValidator(my_validator_lon)
+
+        self.goto_alt = QLineEdit()
+        self.goto_alt.setMaximumWidth(50)
+        self.goto_alt.setPlaceholderText("altitude")
+        self.goto_alt.setValidator(my_validator_alt)
+
+        goto_grid.addWidget(self.goto_lat,0,0)
+        goto_grid.addWidget(self.goto_lon,0,1)
+        goto_grid.addWidget(self.goto_alt,0,2)
+
+        self.actiongrid.addLayout(goto_grid,0,4)
+
+        action_btn_5 = QPushButton("DISARM")
         self.actiongrid.addWidget(action_btn_5, 1, 2)
         action_btn_5.clicked.connect(self.force_disarm)
 
@@ -702,24 +840,33 @@ class Window(QMainWindow):
         action_btn_8.clicked.connect(self.set_ground_speed)
 
         self.combobox_action_1 = QComboBox()
-        self.combobox_action_1.addItems(["Select Mode", "Stabilize", "Guided","Loiter", "Simple Takeoff", "Land", "Alt Hold", "RTL"])
+        self.combobox_action_1.addItems(["Select Mode", "Stabilize", "Guided","Loiter", "Simple Takeoff", "Land", "Alt Hold", "RTL", "Auto"])
         self.actiongrid.addWidget(self.combobox_action_1,0,0)
         self.combobox_action_1.activated[str].connect(self.mode_text)
 
         self.combobox_action_2 = QComboBox()
-        self.combobox_action_2.addItems(["Select Home location", "57600", "115200"])
-        self.actiongrid.addWidget(self.combobox_action_2,1,0)
+        self.combobox_action_2.addItems(["Select Home location", " ", " "])
+        #self.actiongrid.addWidget(self.combobox_action_2,1,0)
         # self.combobox_action_2.activated[str].connect(self.combo_text)
         self.gs_spinbox = QSpinBox()
         self.actiongrid.addWidget(self.gs_spinbox,1,4)
         self.gs_spinbox.setRange(0, 25)
         # self.combobox_action_3.activated[str].connect(self.combo_text)
         self.alt_text = QSpinBox()
-        self.actiongrid.addWidget(self.alt_text, 0, 4)
+        self.actiongrid.addWidget(self.alt_text, 1, 0)
         self.alt_text.setRange(0, 10000)
+    def mapReload(self):
+        self.web.page().action(QWebEnginePage.Reload).trigger()
+        while self.wp_count != 0:
+            #id = self.waypoints_table.verticalHeaderItem(0).text()
+            self.waypoints_table.removeRow(0)
+            #self.markerEvent(marker=False,id=id)
+            self.wp_count -= 1
+
     def set_ground_speed(self):
         try:
             self.vehicle.groundspeed = self.gs_spinbox.value()
+            print("Ground speed:", self.gs_spinbox.value(), self.vehicle.groundspeed)
         except AttributeError:
             self.message=2
 
@@ -737,7 +884,7 @@ class Window(QMainWindow):
     def yaw_callback(self, object, attr_name, value):
         val = str(value).split(":")[1]
         self.quickyaw = val.split(",")[1]
-        self.label_1.setText(self.quickyaw)
+        self.label_1.setText(self.quickyaw[0:11])
         self.attribute_msg = attr_name
 
     def gpsinfo_callback(self, object, attr_name, value):
@@ -753,10 +900,15 @@ class Window(QMainWindow):
         self.attribute_msg = attr_name
 
     def altitude_callback(self, object,attr_name, value):
+        #print(value.lat, value.lon)
         val = str(value).split(":")[1]
         self.quickalt = val.split(",")[2]
         self.label_4.setText(self.quickalt)
         self.attribute_msg = attr_name
+        if self.get_distance_metres(self.previous_loc, value)>3:
+            self.previous_loc = value
+            self.vehicleLocationChanged(lat = str(value.lat), lng = str(value.lon))
+
 
     def groundspeed_callback(self,object, attr_name, value):
         self.quickgroundspeed = attr_name + "=" + str(value)
@@ -772,28 +924,28 @@ class Window(QMainWindow):
         self.modelis = (str(value)).split(":")[1]
         self.mode_label.setText(self.modelis)
         self.attribute_msg = attr_name
-    def listener_thr(self):
-        while not self.pushButton_connect.text() == "Disconnect":
-            time.sleep(2)
-        try:
-            self.vehicle.add_attribute_listener('attitude', self.yaw_callback)  #
-            self.vehicle.add_attribute_listener('location.global_relative_frame', self.altitude_callback)  # in m/s
-            self.vehicle.add_attribute_listener('gps_0', self.gpsinfo_callback)  # in m/s
-            self.vehicle.add_attribute_listener('voltage', self.voltage_callback)  # in m/s
-            self.vehicle.add_attribute_listener('groundspeed', self.groundspeed_callback)  # in m/s
-            self.vehicle.add_attribute_listener('velocity', self.verticalspeed_callback)  # in m/s
-            self.vehicle.add_attribute_listener('mode', self.sysStatus_callback)  # in m/s
+    # def listener_thr(self):
+    #     while not self.pushButton_connect.text() == "Disconnect":
+    #         time.sleep(2)
+    #     try:
+    #         self.vehicle.add_attribute_listener('attitude', self.yaw_callback)  #
+    #         self.vehicle.add_attribute_listener('location.global_relative_frame', self.altitude_callback)  # in m/s
+    #         self.vehicle.add_attribute_listener('gps_0', self.gpsinfo_callback)  # in m/s
+    #         self.vehicle.add_attribute_listener('voltage', self.voltage_callback)  # in m/s
+    #         self.vehicle.add_attribute_listener('groundspeed', self.groundspeed_callback)  # in m/s
+    #         self.vehicle.add_attribute_listener('velocity', self.verticalspeed_callback)  # in m/s
+    #         self.vehicle.add_attribute_listener('mode', self.sysStatus_callback)  # in m/s
 
-            # time.sleep(2)
-            # self.vehicle.remove_attribute_listener('mode', self.sysStatus_callback)
-            # self.vehicle.remove_attribute_listener('attitude', self.yaw_callback)
-            # self.vehicle.remove_attribute_listener('location.global_relative_frame', self.altitude_callback)
-            # self.vehicle.remove_attribute_listener('gps_0', self.gpsinfo_callback)
-            # self.vehicle.remove_attribute_listener('voltage', self.voltage_callback)
-            # self.vehicle.remove_attribute_listener('groundspeed', self.groundspeed_callback)
-            # self.vehicle.remove_attribute_listener('velocity', self.verticalspeed_callback)
-        except Exception as e:
-            print(e)
+    #         # time.sleep(2)
+    #         # self.vehicle.remove_attribute_listener('mode', self.sysStatus_callback)
+    #         # self.vehicle.remove_attribute_listener('attitude', self.yaw_callback)
+    #         # self.vehicle.remove_attribute_listener('location.global_relative_frame', self.altitude_callback)
+    #         # self.vehicle.remove_attribute_listener('gps_0', self.gpsinfo_callback)
+    #         # self.vehicle.remove_attribute_listener('voltage', self.voltage_callback)
+    #         # self.vehicle.remove_attribute_listener('groundspeed', self.groundspeed_callback)
+    #         # self.vehicle.remove_attribute_listener('velocity', self.verticalspeed_callback)
+    #     except Exception as e:
+    #         print(e)
 
 
     def quick_stats(self):
@@ -801,32 +953,32 @@ class Window(QMainWindow):
         self.tab1.setLayout(quickstats_grid)
 
         self.label_1 = QLabel("yaw")
-        self.label_1.setStyleSheet("font:bold 12pt Comic Sans MS")
+        self.label_1.setStyleSheet("font:normal 12pt Arial")
         self.label_1.setAlignment(Qt.AlignCenter)
         quickstats_grid.addWidget(self.label_1, 0, 0)
 
         self.label_2 = QLabel("gps")
-        self.label_2.setStyleSheet("font:bold 12pt Comic Sans MS")
+        self.label_2.setStyleSheet("font:normal 12pt Arial")
         self.label_2.setAlignment(Qt.AlignCenter)
         quickstats_grid.addWidget(self.label_2, 1, 0)
 
         self.label_3 = QLabel("voltage")
-        self.label_3.setStyleSheet("font:bold 12pt Comic Sans MS")
+        self.label_3.setStyleSheet("font:normal 12pt Arial")
         self.label_3.setAlignment(Qt.AlignCenter)
         quickstats_grid.addWidget(self.label_3, 0, 1)
 
         self.label_4 = QLabel("altitude")
-        self.label_4.setStyleSheet("font:bold 12pt Comic Sans MS")
+        self.label_4.setStyleSheet("font:normal 12pt Arial")
         self.label_4.setAlignment(Qt.AlignCenter)
         quickstats_grid.addWidget(self.label_4, 1, 1)
 
         self.label_5 = QLabel("ground speed")
-        self.label_5.setStyleSheet("font:bold 12pt Comic Sans MS")
+        self.label_5.setStyleSheet("font:normal 12pt Arial")
         self.label_5.setAlignment(Qt.AlignCenter)
         quickstats_grid.addWidget(self.label_5, 0, 2)
 
         self.label_6 = QLabel("vertical speed")
-        self.label_6.setStyleSheet("font:bold 12pt Comic Sans MS")
+        self.label_6.setStyleSheet("font:normal 12pt Arial")
         self.label_6.setAlignment(Qt.AlignCenter)
         quickstats_grid.addWidget(self.label_6, 1, 2)
 
@@ -843,13 +995,17 @@ class Window(QMainWindow):
                     self.set_mode_thr = threading.Thread(target=self.set_guidedmode_thr)
                     self.set_mode_thr.start()
                     print("Guided mode set")
-            # elif self.mode == "Auto":
+            elif self.mode == "Auto":
             #     self.home_position_set = False
 
-            #     try:
-            #         self.set_mode_thr.join()
-            #     except AttributeError:
-            #         print("mode exception raised")                
+                try:
+                    self.set_mode_thr.join()
+                except AttributeError:
+                    print("mode exception raised")
+                finally:
+                    self.set_mode_thr = threading.Thread(target=self.set_automode_thr)
+                    self.set_mode_thr.start()
+                    print("Auto mode set")              
             #     if self.px:
             #         self.PX4setMode(4)
             #         print("px4 auto", self.px)
@@ -951,17 +1107,18 @@ class Window(QMainWindow):
         except AttributeError:
             print("No vehicle connected")
 
-    # def set_automode_thr(self):
-    #     try:
-    #         self.vehicle.mode = VehicleMode("AUTO")
-    #         while not self.vehicle.mode.name == "AUTO":
-    #             time.sleep(0.2)
-    #             print("armed",self.vehicle.armed)
-    #         
-    #          self.details_label.setText("")
+    def set_automode_thr(self):
+        try:
+            self.vehicle.mode = VehicleMode("AUTO")
+            while not self.vehicle.mode.name == "AUTO":
+                time.sleep(0.2)
+                #print("armed",self.vehicle.armed)
+            if self.px:
+                self.PX4setMode(4)
+            self.details_label.setText("")
 
-    #     except AttributeError:
-    #         print("No vehicle connected")
+        except AttributeError:
+            print("No vehicle connected")
 
     def set_landmode_thr(self):
         try:
@@ -1008,6 +1165,13 @@ class Window(QMainWindow):
     
     def launch_mission_th_method(self):
         try:
+            try:
+                #self.next.join()
+                self.wp_break = True
+            except Exception as e:
+                print(e)
+                self.wp_break = False
+            self.wp_break = True
             if not self.px:
                 self.vehicle.mode = "GUIDED"
                 self.vehicle.armed = True
@@ -1023,7 +1187,6 @@ class Window(QMainWindow):
             #self.vehicle.commands.next = 1
             # print("565656565656")
             # if self.vehicle.mode.name != "AUTO" and self.vehicle.mode.name != "MISSION":
-            #     print("hi",self.vehicle.mode.name)
             #     self.message = 3
             #     return   
             #print("Basic pre-arm checks")
@@ -1035,67 +1198,51 @@ class Window(QMainWindow):
                 print("not px4")
                 msg = self.vehicle.message_factory.command_long_encode(0, 0, mavutil.mavlink.MAV_CMD_MISSION_START, 0, 0, 0, 0, 0, 0, 0, 0)
                 self.vehicle.send_mavlink(msg)
-            self.next = threading.Thread(target=self.next_wp)
-            self.next.start()
+            
+            #self.next = threading.Thread(target=self.next_wp)
+            #self.next.start()
             self.mode_label.setText("MISSION MODE")
-            #self.pushButtonlaunch.clicked.disconnect(self.launch_mission)
-            #self.pushButtonlaunch.setText("Abort Mission")
-            #self.pushButtonlaunch.clicked.connect(self.abort)
         except AttributeError:
             print("201")
-    def next_wp(self):
-        # monitor mission execution
-        if self.px:
-            nextwaypoint = self.vehicle.commands.next
-            while nextwaypoint <= len(self.vehicle.commands):
-                if self.vehicle.commands.next > nextwaypoint:
-                    display_seq = self.vehicle.commands.next
-                    print("Moving to waypoint %s" % display_seq)
-                    self.details_label.setText("Moving to waypoint %s" % display_seq)
-                    nextwaypoint = self.vehicle.commands.next
-                time.sleep(1)
-                print("ma", nextwaypoint, len(self.vehicle.commands))
-                if  nextwaypoint == len(self.vehicle.commands):
-                    break
-        else:
-            self.vehicle.commands.next = 0
-            nextwaypoint = self.vehicle.commands.next
-            while nextwaypoint <= len(self.vehicle.commands) :
-                if self.vehicle.commands.next > nextwaypoint and self.vehicle.commands.next > 1:
-                    display_seq = self.vehicle.commands.next - 1
-                    print("Moving to waypoint - %s" % display_seq)
-                    self.details_label.setText("Moving to waypoint %s" % display_seq)
-                    nextwaypoint = self.vehicle.commands.next
-                time.sleep(1)
-                print("ma", nextwaypoint, len(self.vehicle.commands))
-                if  nextwaypoint == len(self.vehicle.commands):
-                    break
-        #self.details_label.setText("Mission accompliced")
-            # wait for the vehicle to land
-        # while self.vehicle.commands.next > 0:
-        #     time.sleep(1)
-    def re_launch_mission(self):
-        self.rlm_th = threading.Thread(target=self.re_launch_mission_th)
-        self.rlm_th.start()
-    def re_launch_mission_th(self):
-        if self.vehicle.armed == False:
-            self.set_mode_thr = threading.Thread(target=self.set_simpletakeoff_thr)
-            self.set_mode_thr.start()
-            while self.vehicle.location.global_relative_frame.alt < 5:
-                time.sleep(1)
-        try:
-            self.set_mode_thr.join()
-        except AttributeError:
-            print("e141")
-        self.vehicle.mode = VehicleMode("AUTO")
-        self.mode_label.setText("MISSION MODE")
-        self.details_label.setText("")
+    # def next_wp(self):
+    #     # monitor mission execution
+    #     time.sleep(1)
+    #     self.wp_break = False
+    #     if self.px:
+    #         nextwaypoint = self.vehicle.commands.next
+    #         while nextwaypoint <= len(self.vehicle.commands):
+    #             if self.vehicle.commands.next > nextwaypoint:
+    #                 display_seq = self.vehicle.commands.next
+    #                 print("Moving to waypoint %s" % display_seq)
+    #                 self.details_label.setText("Moving to waypoint %s" % display_seq)
+    #                 nextwaypoint = self.vehicle.commands.next
+    #             time.sleep(1)
+    #             print("ma", nextwaypoint, len(self.vehicle.commands))
+    #             if  nextwaypoint == len(self.vehicle.commands) or self.wp_break:
+    #                 break
+    #     else:
+    #         #self.vehicle.commands.next = 0
+    #         nextwaypoint = self.vehicle.commands.next
+    #         while nextwaypoint <= len(self.vehicle.commands) :
+    #             if self.vehicle.commands.next > nextwaypoint and self.vehicle.commands.next > 1:
+    #                 display_seq = self.vehicle.commands.next
+    #                 print("Moving to waypoint - %s" % display_seq)
+    #                 self.details_label.setText("Moving to waypoint %s" % display_seq)
+    #                 nextwaypoint = self.vehicle.commands.next
+    #             time.sleep(1)
+    #             print("ma", nextwaypoint, len(self.vehicle.commands))
+    #             if  nextwaypoint == len(self.vehicle.commands) or self.wp_break:
+    #                 break
+    #     #self.details_label.setText("Mission accompliced")
+    #         # wait for the vehicle to land
+    #     # while self.vehicle.commands.next > 0:
+    #     #     time.sleep(1)
+    
     def launch_mission(self):
         try:
-            self.abort_th.join()
             self.launch_mission_th.join()
         except AttributeError:
-            print("e57")
+            print("Attribute Error")
         try:
             if self.wps_uploaded2uav == True:
                 self.launch_mission_th = threading.Thread(target=self.launch_mission_th_method)
@@ -1132,53 +1279,14 @@ class Window(QMainWindow):
 
         except AttributeError:
             print("vehicle not connected")
-    def current_loc_stats(self):
-        while True:
-            try:
-                print(" location: ", self.vehicle.location.global_relative_frame)
-                time.sleep(10)
-            except AttributeError:
-                pass
-    def abort(self):
-        try:
-            self.set_mode_thr.join()
-            self.abort_th.join()
-        except AttributeError:
-            print("e155")
-        try:
-            self.launch_mission_th.join()
-            self.rlm_th.join()
-        except AttributeError:
-            print("e56")
-        self.abort_th = threading.Thread(target=self.abort_th_method)
-        self.abort_th.start()
-    def abort_th_method(self):
-        try:
-            if self.vehicle.location.global_relative_frame.alt >= 0:
-                self.vehicle.mode = VehicleMode("RTL")
-                self.vehicle.flush()
-                print("aborting")
-                self.mode_label.setText("Mission Aborted")
-                self.details_label.setText("")
-                while self.vehicle.location.global_relative_frame.alt >= 0.2:
-                    time.sleep(1)
-            self.mds = self.vehicle.commands
-            self.mds.clear()
-            self.wps_uploaded2uav = False
-            self.vehicle.flush()
-            self.mode_label.setText(self.vehicle.mode.name)
-        except AttributeError:
-            print("62")
-        try:
-            print("commands cleared from UAV")
-            self.pushButtonlaunch.clicked.disconnect(self.abort)
-        except TypeError as e:
-            print(str(e))
-        self.pushButtonlaunch.setText("Launch Mission")
-        self.pushButtonlaunch.clicked.connect(self.launch_mission)
-        #self.pushButton_re.clicked.disconnect(self.re_launch_mission)
-    def increase_throttle(self):
-        pass
+    # def current_loc_stats(self):
+    #     while True:
+    #         try:
+    #             print(" location: ", self.vehicle.location.global_relative_frame)
+    #             time.sleep(10)
+    #         except AttributeError:
+    #             pass
+    
     def force_arm(self):
         try:
             print("Trying force arm...")
@@ -1208,14 +1316,15 @@ class Window(QMainWindow):
         #self.waypoints_table.verticalHeader().setVisible(False)
         self.waypoints_table.show()
         self.waypoints_table.itemChanged.connect(self.table_item_changed)
-        self.waypoints_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        #self.waypoints_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.waypoints_table.setRowCount(0)
-        self.waypoints_table.setColumnCount(5)
+        self.waypoints_table.setColumnCount(6)
 
         #self.waypoints_table.setFixedSize(1200, 150)
-        self.waypoints_table.setHorizontalHeaderLabels(( "Lattitude", "Longitude", "Move Up", "Move Down", "Remove"))
+        self.waypoints_table.setHorizontalHeaderLabels(( "Lattitude", "Longitude", "Move Up", "Move Down", "Remove", "alt"))
         self.waypoints_table.setColumnWidth(1, 150)
         self.waypoints_table.setColumnWidth(0, 200)
+
 
         waypointButtonWidget = QWidget()
         waypoints_button_grid = QGridLayout()
@@ -1225,9 +1334,9 @@ class Window(QMainWindow):
         waypoints_button_grid.addWidget(btn11, 0, 0)
         btn11.clicked.connect(self.upload_custom_wps)
 
-        btn12 = QPushButton("Download Logs")
+        btn12 = QPushButton("Reload Map")
         waypoints_button_grid.addWidget(btn12, 1, 0)
-        btn12.clicked.connect(self.download_logs)
+        btn12.clicked.connect(self.mapReload)
 
         btn13 = QPushButton("Delete all Waypoints")
         waypoints_button_grid.addWidget(btn13, 2, 0)
@@ -1244,13 +1353,17 @@ class Window(QMainWindow):
         swp.start()
     def send_wps_to_uav_th(self):
         waypoints = []
+        alt_list = []
         print("row count:", self.waypoints_table.rowCount())
         for row in range(self.waypoints_table.rowCount()):
             waypoint = {}
+            
             lat = self.waypoints_table.item(row, 0)
             lon = self.waypoints_table.item(row, 1)
+            alt = self.waypoints_table.item(row, 5)
             waypoint[float(lat.text())] = float(lon.text())
             waypoints.append(waypoint)
+            alt_list.append(float(alt.text()))
             self.vehicle
         try:
             cmds = self.vehicle.commands
@@ -1259,10 +1372,11 @@ class Window(QMainWindow):
             # if self.vehicle.home_location is None:
             #     self.vehicle.home_location = LocationGlobal(-35.3628118424579,149.16467813602, self.altitude)
             #     print(self.vehicle.home_location)
-            #home = self.vehicle.location.global_relative_frame
+            # home = self.vehicle.location.global_relative_frame
             # self.vehicle.home_location=vehicle.location.global_frame
 
             try:
+                alt_i=0
                 if self.vehicle.home_location is None:
                     cmds.add(Command( 0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, 0,self.altitude))
                 else:
@@ -1270,18 +1384,25 @@ class Window(QMainWindow):
                     cmds.add(Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 1, 0, 0, 0, 0, self.vehicle.home_location.lat, self.vehicle.home_location.lon, self.altitude))
                 for wp in waypoints:
                     i, j = list(wp.keys()), list(wp.values())
-                    print("hi", float(i[0]),j[0])
-                    cmds.add(Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, i[0], j[0], self.altitude))
+                    print("uploading", float(i[0]),j[0], alt_list[alt_i])
+                    cmds.add(Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 1, 0, 0, 0, 0, i[0], j[0], alt_list[alt_i]))
+                    alt_i += 1
                 #cmds.add(Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH, 0, 1, 0, 0, 0, 0, 0, 0, 0))
                 #cmds.add(Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_LAND, 0, 1, 0, 0, 0, 0, i[0], j[0], self.altitude))
                 print("uploading mission commands")
-                cmds.upload()
-                time.sleep(1)
-                self.message = 7
-                self.wps_uploaded2uav = True
+                try:
+                    cmds.upload(timeout=30)
+                    time.sleep(1)
+                    self.message = 7
+                    self.wps_uploaded2uav = True
+                    #self.logger.debug("mission cmds uploaded")
+                except Exception as e:
+                    print("unable to upload\n", e)
+                    #self.logger.debug("Upload timeout error "+e)
             #except (AttributeError, UnboundLocalError):
             except Exception as e:
                 print(e)
+                #self.logger.debug(e)
                 self.message = 4
         except Exception as e:
             print(e)
@@ -1381,6 +1502,63 @@ class Window(QMainWindow):
         move_wp_up_btn.clicked.connect(self.move_wp_up_btn_clicked)
         move_wp_down_btn.clicked.connect(self.move_wp_down_btn_clicked)
         self.wp_count += 1
+    def get_distance_metres(self, aLocation1, aLocation2):
+        """
+        Returns the ground distance in metres between two LocationGlobal objects.
+
+        This method is an approximation, and will not be accurate over large distances and close to the 
+        earth's poles. It comes from the ArduPilot test code: 
+        https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
+        """
+        dlat = aLocation2.lat - aLocation1.lat
+        dlong = aLocation2.lon - aLocation1.lon
+        return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
+    def position_messages_from_tlog(self, filename):
+        """
+        Given telemetry log, get a series of wpts approximating the previous flight
+        """
+        # Pull out just the global position msgs
+        messages = []
+        mlog = mavutil.mavlink_connection(filename)
+        while True:
+            try:
+                m = mlog.recv_match(type=['GLOBAL_POSITION_INT'])
+                if m is None:
+                    break
+            except Exception:
+                break
+            # ignore we get where there is no fix:
+            if m.lat == 0:
+                continue
+            messages.append(m)
+
+        # Shrink the number of points for readability and to stay within autopilot memory limits. 
+        # For coding simplicity we:
+        #   - only keep points that are with 3 metres of the previous kept point.
+        #   - only keep the first 100 points that meet the above criteria.
+        num_points = len(messages)
+        keep_point_distance=3 #metres
+        kept_messages = []
+        kept_messages.append(messages[0]) #Keep the first message
+        pt1num=0
+        pt2num=1
+        while True:
+            #Keep the last point. Only record 99 points.
+            if pt2num==num_points-1 or len(kept_messages)==99:
+                kept_messages.append(messages[pt2num])
+                break
+            pt1 = LocationGlobalRelative(messages[pt1num].lat/1.0e7,messages[pt1num].lon/1.0e7,0)
+            pt2 = LocationGlobalRelative(messages[pt2num].lat/1.0e7,messages[pt2num].lon/1.0e7,0)
+            
+            distance_between_points = self.get_distance_metres(pt1,pt2)
+            if distance_between_points > keep_point_distance:
+                kept_messages.append(messages[pt2num])
+                pt1num=pt2num
+                print("pt",pt1,pt2)
+            pt2num=pt2num+1
+
+        return kept_messages
+
     def upload_custom_wps(self):
         import csv        
         options = QFileDialog.Options()
@@ -1395,7 +1573,7 @@ class Window(QMainWindow):
             if msg == QMessageBox.Ok:
                 if ".tlog" in filename:
                     print("Generating waypoints from tlog...")
-                    messages = self.position_messages_from_tlog("flight.tlog")
+                    messages = self.position_messages_from_tlog(filename)
                     print(" Generated %d waypoints from tlog" % len(messages))
                     if len(messages) == 0:
                         print("No position messages found in log")
@@ -1403,9 +1581,9 @@ class Window(QMainWindow):
                     wp = []
                     for pt in messages:
                     #print "Point: %d %d" % (pt.lat, pt.lon,)
-                        lat = pt.lat
-                        lon = pt.lon
-                        print(lat, lon)
+                        lat = str(pt.lat/1.0e7)
+                        lon = str(pt.lon/1.0e7)
+                        print("lat",lat, lon)
                         self.markerEvent(marker=True,lat=lat,lng=lon)
 
                 else:
@@ -1477,25 +1655,33 @@ class Window(QMainWindow):
                 move_wp_down_btn.clicked.connect(self.move_wp_down_btn_clicked)
                 item1 = QTableWidgetItem(message[1])
                 item2 = QTableWidgetItem(message[2])
+                item6 = QTableWidgetItem("10")
                 self.waypoints_table.setItem(self.wp_count, 0, item1)
                 self.waypoints_table.setItem(self.wp_count, 1, item2)
+                self.waypoints_table.setItem(self.wp_count, 5, item6)
                 self.wp_count +=1
             else:
                 self.remove_wp_from_table_by_click(message)
+    def onLoadFinished(self, ok):
+        print("inside", self.isFirst)
+        if self.isFirst:
+            print("start")
+            #self.sender().page().action(QWebEnginePage.Reload).trigger()
+            #self.sender().reload()
+
+            print(done)
+        self.isFirst = False
     def fol(self):
     #     f = open("latlng.html", "r")
     #     self.my_folmap.template_vars.update({'lat_lng_pop': f.read()})
         self.web = QWebEngineView()
-        # self.web.resize(600, 420)
         self.p = WebPage()
         self.web.setPage(self.p)
-        # self.web.loadFinished.connect(self.onLoadFinished)
         # path = os.path.dirname(os.path.realpath(__file__))
         # path = os.path.join(path, "customMap.html")
         file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "customMap.html"))
         localurl = QUrl.fromLocalFile(file_path)
         self.web.load(QUrl(localurl))
-        # self.web.load(QUrl("my_folmap.html"))
         self.web.show()
         self.hbox1.addWidget(self.web, Qt.AlignCenter)
         self.p.loc_signal.connect(self.updateMarkerID)
@@ -1518,9 +1704,13 @@ class Window(QMainWindow):
             self.web.page().runJavaScript("python_call_add("+lat+","+lng+");", self.ready)
         else:
             self.web.page().runJavaScript("python_call_remove("+id+");", self.ready)
+    def vehicleLocationChanged(self,initial = False, lat=None,lng=None):
+        if initial:
+            self.web.page().runJavaScript("python_call_initialVehicleLocation("+lat+","+lng+");", self.ready)
+        else:
+            self.web.page().runJavaScript("python_call_newVehicleLocation("+lat+","+lng+");", self.ready)    
     def ready(self, returnValue):
         pass
-        #print("hi====",returnValue)
     def video(self, cap):
         ret, frame = cap.read()
         #frame = cv2.resize(frame, (750, 750))

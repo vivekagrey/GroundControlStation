@@ -5,13 +5,15 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QSplashScreen, QApplication
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    splash_pix = QPixmap("logo.png")
+    splash_pix = QPixmap("splash.png")
+    #600x400 px
     # splash_pix.scaled(500, 250)
     splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
     # splash.setFixedSize(500, 250)
     splash.show()
     def start():
         splash.close()
+        
         global gui
         gui = window.Window()
         gui.show()

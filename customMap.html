@@ -108,7 +108,8 @@
       
 
       /*
-      list of layers to be added
+      list of layers to be added//python_call_initialVehicleLocation(23,99);
+
       */
       var layer_list = {
                     
@@ -126,30 +127,22 @@
       Creates the map and adds the selected layers
       */
       var map = L.map('folium_8c214eb2bce443a8a50186a8cbf6d047', {
-                                       center:[28.59622800000000,77.38277600000000],
-                                       zoom: 18,
+                                       center:[28.5746070,77.4824165],
+                                       zoom: 04,
                                        maxBounds: bounds,
                                        layers: [base_tile]
                                      });
 
-      L.control.layers(baseLayer, layer_list).addTo(map);
-
-      //cluster group
-      var clusteredmarkers = L.markerClusterGroup();
-      //section for adding clustered markers
-      
-      //add the clustered markers to the group anyway
-      map.addLayer(clusteredmarkers);
-
 var markers = [];
 var uniqueId = 1;
+var initialMarker;
 
 function python_call_add(lat,lng)
 {
    var new_mark = L.marker([lat, lng]).addTo(map);
    new_mark.id = uniqueId;
    markers.push(new_mark);
-   new_mark.dragging.enable();
+   //new_mark.dragging.enable();
    new_mark.on('dblclick', function(e){map.removeLayer(e.target);
       var wp = [0,e.latlng.lat,e.latlng.lng,new_mark.id];
    console.log(wp);})
@@ -171,7 +164,21 @@ function python_call_remove(id)
                 return;
             }
          }
-      }
+}
+function python_call_initialVehicleLocation(newLat, newLng)
+{  map.setZoom(18);                           
+   map.panTo(L.latLng(newLat, newLng));
+   initialMarker = L.circleMarker([newLat, newLng], {"bubblingMouseEvents": true, "color": "green", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 1, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 3, "stroke": true, "weight": 3}
+            ).addTo(map);
+   
+}
+function python_call_newVehicleLocation(lat,lng)
+{  
+   var circle_marker = L.circleMarker([lat, lng], {"bubblingMouseEvents": true, "color": "green", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 1, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 3, "stroke": true, "weight": 3}
+            ).addTo(map);
+   map.removeLayer(initialMarker)
+   initialMarker = circle_marker;
+}
 function newMarker(e){
     var new_mark = L.marker().setLatLng(e.latlng).addTo(map);
     new_mark.id = uniqueId;
